@@ -2,5 +2,6 @@
 #忽略Python编译文件
 __pycache__/
 *.pyc
+*.yml
 #忽略配置文件
 config.py
