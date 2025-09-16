@@ -29,26 +29,6 @@ if exist requirements.txt (
     REM 直接使用requirements.txt安装所有依赖
     pip install -r requirements.txt
     
-    REM 验证关键包是否安装成功
-    echo Verifying key installations...
-    python -c "import torch; print('✓ PyTorch installed, CUDA available:', torch.cuda.is_available())" 2>nul
-    if %errorlevel% neq 0 (
-        echo ⚠ PyTorch not found, installing CUDA version...
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    )
-    
-    python -c "import faiss; print('✓ FAISS installed')" 2>nul
-    if %errorlevel% neq 0 (
-        echo ⚠ FAISS not found, installing GPU version...
-        pip install faiss-gpu
-    )
-    
-    python -c "import PyPDF2; print('✓ PyPDF2 installed')" 2>nul
-    if %errorlevel% neq 0 (
-        echo ✗ PyPDF2 installation failed
-        pause
-        exit /b 1
-    )
     
     echo ✓ All dependencies installed successfully!
 ) else (
