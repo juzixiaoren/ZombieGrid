@@ -1,2 +1,6 @@
 .DS_Store
+#忽略Python编译文件
+__pycache__/
 *.pyc
+#忽略配置文件
+config.py
