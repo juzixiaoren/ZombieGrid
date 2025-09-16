@@ -2,9 +2,9 @@ import os
 
 # MySQL 配置
 MYSQL_CONFIG = {
-    'host': 'localhost',
+    'host': '127.0.0.1',
     'user': 'root',            # 修改为你自己的用户名
-    'password': 'fanggege',  # 修改为你自己的密码
+    'password': '123456',  # 修改为你自己的密码
     'database': 'ZombieGrid'  #修改为你创建的库名称 ，建议还是这个名
 }
 

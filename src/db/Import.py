@@ -3,10 +3,10 @@ import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from Config import SQLALCHEMY_DATABASE_URI
+from db.config import SQLALCHEMY_DATABASE_URI
 
 # 导入您定义的数据结构
-from GridDataStructure import IndexData, Base
+from db.grid_data_structure import IndexData, Base
 
 json_file_path="DataBase/DataFolder/399971perf.json"
 

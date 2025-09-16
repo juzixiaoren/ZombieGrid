@@ -1,9 +1,11 @@
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from GridDataStructure import IndexData
-from Config import SQLALCHEMY_DATABASE_URI
+from db.grid_data_structure import IndexData
+from db.config import SQLALCHEMY_DATABASE_URI
+from db import config
 import json
+import pymysql
 
 def export_data_by_id_range(session, start_id=1, end_id=-1, output_json_path=None):
     """
@@ -77,6 +79,23 @@ def export_data_by_id_range(session, start_id=1, end_id=-1, output_json_path=Non
     except Exception as e:
         print(f"导出数据时出错: {e}")
         return []
+
+def create_database_if_not_exists():
+    db_name = config.MYSQL_CONFIG['database']
+    try:
+        conn = pymysql.connect(
+            host=config.MYSQL_CONFIG['host'],
+            user=config.MYSQL_CONFIG['user'],
+            password=config.MYSQL_CONFIG['password']
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            )
+        conn.close()
+        print(f"数据库 `{db_name}` 已创建或已存在。")
+    except Exception as e:
+        print(f"创建数据库失败: {e}")
 
 def get_total_records_count(session):
     """
