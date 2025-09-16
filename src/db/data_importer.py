@@ -1,15 +1,16 @@
+import os
 import pandas as pd
 import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from db.config import SQLALCHEMY_DATABASE_URI
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 导入您定义的数据结构
 from db.grid_data_structure import IndexData, Base
 
-json_file_path="DataBase/DataFolder/399971perf.json"
-
+json_file_path = os.path.join(BASE_DIR, "database_folder", "399971perf.json")
 class DataImporter:
     """
     数据导入器 - 将指数数据导入到您定义的GridData表中
