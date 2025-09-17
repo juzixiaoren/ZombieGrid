@@ -1,7 +1,7 @@
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from db.grid_data_structure import IndexData
+from db.grid_data_structure import IndexData,grid_config
 from db.config import SQLALCHEMY_DATABASE_URI
 from db import config
 import json
@@ -80,58 +80,6 @@ def export_data_by_id_range(session, start_id=1, end_id=-1, output_json_path=Non
         print(f"导出数据时出错: {e}")
         return []
 
-def create_database_if_not_exists():
-    db_name = config.MYSQL_CONFIG['database']
-    try:
-        conn = pymysql.connect(
-            host=config.MYSQL_CONFIG['host'],
-            user=config.MYSQL_CONFIG['user'],
-            password=config.MYSQL_CONFIG['password']
-        )
-        with conn.cursor() as cursor:
-            cursor.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{db_name}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-            )
-        conn.close()
-        print(f"数据库 `{db_name}` 已创建或已存在。")
-    except Exception as e:
-        print(f"创建数据库失败: {e}")
-
-def get_total_records_count(session):
-    """
-    获取数据库中总记录数
-    :param session: 数据库会话对象
-    :return: 记录总数
-    """
-    try:
-        count = session.query(IndexData).count()
-        return count
-    except Exception as e:
-        print(f"获取记录总数时出错: {e}")
-        return 0
-
-def print_data_summary(session):
-    """
-    打印数据摘要信息
-    :param session: 数据库会话对象
-    """
-    try:
-        total_count = get_total_records_count(session)
-        earliest_date = session.query(IndexData.date).order_by(IndexData.date).first()
-        latest_date = session.query(IndexData.date).order_by(IndexData.date.desc()).first()
-        
-        print(f"=== 数据库摘要 ===")
-        print(f"总记录数: {total_count}")
-        if earliest_date and earliest_date[0]:
-            print(f"最早日期: {earliest_date[0]}")
-        if latest_date and latest_date[0]:
-            print(f"最新日期: {latest_date[0]}")
-        print("==================")
-        
-    except Exception as e:
-        print(f"获取数据摘要时出错: {e}")
-
-
 
 if __name__ == "__main__":
     # 创建数据库引擎和会话
@@ -140,9 +88,6 @@ if __name__ == "__main__":
     session = Session()
     
     try:
-        # 打印数据摘要
-        print_data_summary(session)
-        
         # 导出数据示例
         records = export_data_by_id_range(session, 1, 10, "DataBase/DataFolder/test.json")
         
