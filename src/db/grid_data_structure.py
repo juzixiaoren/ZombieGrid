@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Date, create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float, Date,ForeignKey,DateTime
+from sqlalchemy.orm import relationship,declarative_base
 from datetime import datetime
 
 Base = declarative_base()
@@ -32,3 +32,51 @@ class IndexData(Base):
     
     def __repr__(self):
         return f"<IndexData(date='{self.date}', index_code='{self.index_code}')>"
+    
+
+
+
+
+
+
+class GridConfig(Base):
+    __tablename__ = 'GridConfig'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    a = Column(Float, nullable=False, comment="波动大小参数 a")
+    b = Column(Float, nullable=False, comment="单行收益率参数 b")
+    first_trigger_price = Column(Float, nullable=False, comment="首行买入触发价")
+    total_rows = Column(Integer, nullable=False, comment="网格总行数")
+    buy_amount = Column(Float, nullable=False, comment="买入金额")
+
+    #created_at = Column(DateTime, default=datetime.utcnow)  # 添加时间戳
+    
+    # 关联关系：一个配置对应多个网格行
+    rows = relationship("GridRow", back_populates="config", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<GridConfig(id={self.id})>"
+    
+
+
+class GridRow(Base):
+    __tablename__ = 'GridRow'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_id = Column(Integer, ForeignKey('GridConfig.id', ondelete="CASCADE"), nullable=False, comment="所属配置ID")
+    fall_percent = Column(Float, nullable=False, comment="跌幅比例")
+    level_ratio = Column(Float, nullable=False, comment="档位值")
+    buy_trigger_price = Column(Float, nullable=False, comment="买入触发价")
+    buy_price = Column(Float, nullable=False, comment="买入交易价")
+    buy_amount = Column(Float, nullable=False, comment="买入金额")
+    shares = Column(Float, nullable=False, comment="买入股数")
+
+    sell_trigger_price = Column(Float, nullable=False, comment="卖出触发价")
+    sell_price = Column(Float, nullable=False, comment="卖出交易价")
+    yield_rate = Column(Float, nullable=False, comment="收益率")
+    profit_amount = Column(Float, nullable=False, comment="盈利金额")
+    # 关联回配置
+    config = relationship("GridConfig", back_populates="rows")
+
+    def __repr__(self):
+        return f"<GridRow(config_id={self.config_id})>"
