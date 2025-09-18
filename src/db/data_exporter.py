@@ -23,15 +23,22 @@ class DataExporter:
         :return: 导出的数据列表
         """
         try:
+            # 查询所有数据并按日期排序
             query = self.session.query(IndexData).order_by(IndexData.date)
             all_data = query.all()
+            
+            # 检查总记录数
             total_records = len(all_data)
             if total_records == 0:
                 print("数据库中没有数据")
                 return []
+            
+            # 验证起始ID
             if start_id < 1 or start_id > total_records:
                 print(f"错误: 起始ID {start_id} 无效。有效范围为 1 到 {total_records}")
                 return []
+            
+            # 处理结束ID为-1的情况（导出到最后一行）
             if end_id == -1:
                 end_id = total_records
             elif end_id > total_records:
@@ -40,7 +47,11 @@ class DataExporter:
             elif end_id < start_id:
                 print(f"错误: 结束ID {end_id} 小于起始ID {start_id}")
                 return []
+            
+            # 提取指定范围的数据（注意：数据库索引从0开始，所以需要减1）
             selected_data = all_data[start_id-1:end_id]
+            
+            # 转换为字典列表
             records = []
             for data in selected_data:
                 record = {
@@ -61,45 +72,20 @@ class DataExporter:
                     'cons_number': int(data.cons_number) if data.cons_number is not None else 0
                 }
                 records.append(record)
+            
+            # 如果指定了输出路径，则保存到JSON文件
             if output_json_path:
                 with open(output_json_path, 'w', encoding='utf-8') as f:
                     json.dump(records, f, ensure_ascii=False, indent=2)
                 print(f"成功导出 {len(records)} 条记录到 {output_json_path}")
+            
             print(f"成功导出ID范围 {start_id}-{end_id} 的数据，共 {len(records)} 条记录")
             return records
+            
         except Exception as e:
             print(f"导出数据时出错: {e}")
             return []
 
-    def get_total_records_count(self):
-        """
-        获取数据库中总记录数
-        :return: 记录总数
-        """
-        try:
-            count = self.session.query(IndexData).count()
-            return count
-        except Exception as e:
-            print(f"获取记录总数时出错: {e}")
-            return 0
-
-    def print_data_summary(self):
-        """
-        打印数据摘要信息
-        """
-        try:
-            total_count = self.get_total_records_count()
-            earliest_date = self.session.query(IndexData.date).order_by(IndexData.date).first()
-            latest_date = self.session.query(IndexData.date).order_by(IndexData.date.desc()).first()
-            print(f"=== 数据库摘要 ===")
-            print(f"总记录数: {total_count}")
-            if earliest_date and earliest_date[0]:
-                print(f"最早日期: {earliest_date[0]}")
-            if latest_date and latest_date[0]:
-                print(f"最新日期: {latest_date[0]}")
-            print(f"==================")
-        except Exception as e:
-            print(f"获取数据摘要时出错: {e}")
 
     def close(self):
         self.session.close()
