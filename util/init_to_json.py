@@ -62,9 +62,9 @@ def validate_json(json_file_path):
 
 if __name__ == "__main__":
     # 配置文件路径
-    excel_file = "DataBase/DataFolder/399971perf.xlsx"  # 输入的Excel文件
-    json_file = "DataBase/DataFolder/399971perf.json"   # 输出的JSON文件
-    
+    excel_file = "./data/database_folder/399971perf.xlsx"  # 输入的Excel文件
+    json_file = "./data/database_folder/399971perf.json"   # 输出的JSON文件
+
     # 检查输入文件是否存在
     if not os.path.exists(excel_file):
         print(f"错误: 找不到Excel文件 {excel_file}")

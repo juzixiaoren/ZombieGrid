@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
-from ..db.grid_data_structure import GridConfig, GridRow
-from ..db.data_importer import DataImporter
-from ..db.config import SQLALCHEMY_DATABASE_URI
+from dao.grid_data_structure import GridConfig, GridRow
+from dao.data_importer import DataImporter
+from dao.config import SQLALCHEMY_DATABASE_URI
 def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
     """
     根据输入参数生成 GridConfig 实例和对应的 GridRow 列表
@@ -134,13 +134,8 @@ def test_generate_grid():
     rows = result["rows"]
     assert len(rows) == 5
     print(f"生成 {len(rows)} 行网格数据")
-
-    # 打印前两行
-    for i, row in enumerate(rows[:2]):
-        print(f"\n第{i+1}行:")
-        print(f"  买入价: {row['buy_price']:.3f}")
-        print(f"  股数: {row['shares']:.0f}")
-        print(f"  盈利: {row['profit_amount']:.2f}")
+    
+    print_structured_grid_result(result)
 
     # 验证数学逻辑
     first_row = rows[0]
@@ -163,6 +158,10 @@ def test_generate_grid():
     print("\n所有测试通过！")
 
 
-if __name__ == "__main__":
+def print_structured_grid_result(result: Dict[str, Any]):
+    import json
+    print("\n结构化网格结果:")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
+if __name__ == "__main__":
     test_generate_grid()
