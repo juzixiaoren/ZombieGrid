@@ -43,6 +43,8 @@ class GridConfig(Base):
     __tablename__ = 'GridConfig'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=True, comment="策略名称")
+    last_modified = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="最后修改时间")
     a = Column(Float, nullable=False, comment="波动大小参数 a")
     b = Column(Float, nullable=False, comment="单行收益率参数 b")
     first_trigger_price = Column(Float, nullable=False, comment="首行买入触发价")

@@ -2,7 +2,9 @@ from typing import List, Dict, Any
 from dao.grid_data_structure import GridConfig, GridRow
 from dao.data_importer import DataImporter
 from dao.config import SQLALCHEMY_DATABASE_URI
-def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]: 
     """
     根据输入参数生成 GridConfig 实例和对应的 GridRow 列表
     返回结构化字典，便于转 JSON 或前端使用
@@ -10,6 +12,7 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Step 1: 创建 GridConfig 实例
     grid_config = GridConfig(
+        name=input_params.get("name", None),
         a=input_params["a"],
         b=input_params["b"],
         first_trigger_price=input_params["first_trigger_price"],
@@ -74,6 +77,8 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
     result = {
         "config": {
             "id": grid_config.id if hasattr(grid_config, 'id') else None,
+            "name": grid_config.name if hasattr(grid_config, 'name') else None,
+            "last_modified": grid_config.last_modified if hasattr(grid_config, 'last_modified') else None,
             "a": grid_config.a,
             "b": grid_config.b,
             "first_trigger_price":grid_config.first_trigger_price,
@@ -103,7 +108,10 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 
-
+def save_grid_to_db(result: Dict[str, Any]):
+    """将生成的网格配置和行保存到数据库"""
+    data_importer = DataImporter(SQLALCHEMY_DATABASE_URI)
+    data_importer.import_grid_model(result)
 
 def test_generate_grid():
     """测试函数"""
@@ -162,6 +170,52 @@ def print_structured_grid_result(result: Dict[str, Any]):
     import json
     print("\n结构化网格结果:")
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    
 
+def print_grid_result_by_id(config_id: int):
+    """根据ID在数据库中查找并打印grid_result"""
+    import json
+    engine = create_engine(SQLALCHEMY_DATABASE_URI)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    try:
+        config = session.query(GridConfig).filter_by(id=config_id).first()
+        if not config:
+            print(f"未找到ID为 {config_id} 的网格配置")
+            return
+        rows = session.query(GridRow).filter_by(config_id=config_id).all()
+        result = {
+            "config": {
+                "id": config.id,
+                "name": getattr(config, 'name', None),
+                "last_modified": getattr(config, 'last_modified', None),
+                "a": config.a,
+                "b": config.b,
+                "first_trigger_price": config.first_trigger_price,
+                "total_rows": config.total_rows,
+                "buy_amount": config.buy_amount
+            },
+            "rows": [
+                {
+                    "id": row.id,
+                    "config_id": row.config_id,
+                    "fall_percent": row.fall_percent,
+                    "level_ratio": row.level_ratio,
+                    "buy_trigger_price": row.buy_trigger_price,
+                    "buy_price": row.buy_price,
+                    "buy_amount": row.buy_amount,
+                    "shares": row.shares,
+                    "sell_trigger_price": row.sell_trigger_price,
+                    "sell_price": row.sell_price,
+                    "yield_rate": row.yield_rate,
+                    "profit_amount": row.profit_amount
+                }
+                for row in rows
+            ]
+        }
+        print("\n结构化网格结果:")
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    finally:
+        session.close()
 if __name__ == "__main__":
     test_generate_grid()

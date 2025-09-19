@@ -1,6 +1,8 @@
 import os
 import time,sys
-from util.build_grid_model import generate_grid_from_input,print_structured_grid_result
+from dao.grid_data_structure import GridConfig
+from util.build_grid_model import generate_grid_from_input,print_structured_grid_result,save_grid_to_db,print_grid_result_by_id
+from dao.db_function_library import init_db
 try:
     import msvcrt
     WINDOWS = True
@@ -9,6 +11,7 @@ except ImportError:
     WINDOWS = False
 
 def run_cli():
+    init_db()
     menu = {
         '1': ('生成模型策略', handle_generate),
         '2': ('查看历史策略', handle_view_history),
@@ -41,6 +44,9 @@ def run_cli():
             
 def generate_grid_get_input():
     print("请输入网格参数：")
+    
+    name = input("请输入策略名称 (可选): ").strip() or None
+
     a = input_float("请输入波动捕捉大小参数 a (0.05~0.30): ", 0.05, 0.30)
     b = input_float("请输入每行收益率参数 b (0.05~0.30): ", 0.05, 0.30)
     first_trigger_price = input_float("请输入首个触发价 (例如 1.000): ", 0.0001)
@@ -48,6 +54,7 @@ def generate_grid_get_input():
     buy_amount = input_float("请输入每次买入金额 (例如 10000.0): ", 0.01)
 
     params = {
+        "name": name,
         "a": a,
         "b": b,
         "first_trigger_price": first_trigger_price,
@@ -61,11 +68,11 @@ def handle_generate():
     clear()
     result = generate_grid_get_input()
     print("\n✅ 网格策略生成完成！")
-    print("按回车键立即查看详情，或等待 5 秒自动返回主菜单...")
+    print("按回车键立即查看详情，或等待 5 秒后自动保存...")
 
     timeout = 5
     for remaining in range(timeout, 0, -1):
-        print(f"返回主菜单倒计时：{remaining} 秒", end="\r", flush=True)
+        print(f"保存倒计时：{remaining} 秒", end="\r", flush=True)
 
         if WINDOWS:
             # Windows: 用 msvcrt 检测是否按键
@@ -74,6 +81,13 @@ def handle_generate():
                 if key == '\r':  # 回车键
                     print("\n--- 生成的策略数据 ---")
                     print_structured_grid_result(result)
+                    print("是否保存该策略？ (y/n): ", end='', flush=True)
+                    choice = input().strip().lower()
+                    if choice == 'y':
+                        save_grid_to_db(result)
+                        print("✅ 策略已保存到数据库！")
+                    else:
+                        print("❌ 策略未保存。")
                     input("\n按回车返回主菜单...")
                     return
         else:
@@ -83,6 +97,13 @@ def handle_generate():
                 sys.stdin.readline()
                 print("\n--- 生成的策略数据 ---")
                 print_structured_grid_result(result)
+                print("是否保存该策略？ (y/n): ", end='', flush=True)
+                choice = input().strip().lower()
+                if choice == 'y':
+                    save_grid_to_db(result)
+                    print("✅ 策略已保存到数据库！")
+                else:
+                    print("❌ 策略未保存。")
                 input("\n按回车返回主菜单...")
                 return
 
@@ -93,7 +114,32 @@ def handle_generate():
 def handle_view_history():
     clear()
     print("=== 历史策略列表 ===")
+    configs = get_all_grid_configs()
+    if not configs:
+        print("📭 暂无策略记录")
+        input("按回车返回主菜单...")
+        return
+
+    print("{:<4} {:<20} {:<20} {:<5} {:<5} {:<5}".format(
+        "ID", "名称", "最后修改时间", "a", "b", "行数"
+    ))
+    for cfg in configs:
+        print("{:<4} {:<20} {:<20} {:<5} {:<5} {:<5}".format(
+            cfg.id, cfg.name, cfg.last_modified.strftime("%Y-%m-%d %H:%M"),
+            cfg.a, cfg.b, cfg.total_rows
+        ))
+
+    choice = input("请输入要查看的策略 ID: ").strip()
+    selected = get_grid_config_by_id(choice)
+    if not selected:
+        print("❌ 未找到该策略 ID")
+        input("按回车返回主菜单...")
+        return
+
+    print_grid_result_by_id(selected.id)
     input("按回车返回主菜单...")
+    
+    
 def input_float(prompt, min_value=None, max_value=None):
     while True:
         try:
