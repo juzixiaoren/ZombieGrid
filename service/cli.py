@@ -15,7 +15,8 @@ def run_cli():
     menu = {
         '1': ('生成模型策略', handle_generate),
         '2': ('查看历史策略', handle_view_history),
-        '3': ('退出', None)
+        '3': ('回测策略', handle_backtest),
+        'c': ('退出', None)
     }
 
     while True:
@@ -31,7 +32,7 @@ def run_cli():
             continue
 
         label, action = menu[choice]
-        if choice == '3':  # 退出
+        if choice == 'c' or choice == 'C':  # 退出
             print("👋 再见")
             break
 
@@ -150,7 +151,36 @@ def handle_view_history():
     print_structured_grid_result(dict_rows)
 
     input("按回车返回主菜单...")
-    
+
+def handle_backtest():
+    clear()
+    print("=== 策略回测功能 ===")
+    dbSessionManager = DBSessionManager()
+    print("=== 历史策略列表 ===")
+    configs = dbSessionManager.get_all_records('GridConfig')
+    if not configs:
+        print("📭 暂无策略记录")
+        input("按回车返回主菜单...")
+        return
+
+    print("{:<4} {:<20} {:<20} {:<5} {:<5} {:<5}".format(
+        "ID", "名称", "最后修改时间", "a", "b", "行数"
+    ))
+    for cfg in configs:
+        last_modified_str = cfg.last_modified.strftime("%Y-%m-%d %H:%M") if cfg.last_modified else "无"
+        name_str = cfg.name if cfg.name is not None else "无"
+        print("{:<4} {:<20} {:<20} {:<5} {:<5} {:<5}".format(
+            cfg.id, name_str, last_modified_str, cfg.a, cfg.b, cfg.total_rows
+        ))
+
+    choice = input("请输入要回测的策略 ID: ").strip()
+    try:
+        
+    except ValueError:
+        print("❌ 请输入有效的数字ID")
+        input("按回车返回主菜单...")
+        return
+    input("按回车返回主菜单...")
     
 def input_float(prompt, min_value=None, max_value=None):
     while True:
