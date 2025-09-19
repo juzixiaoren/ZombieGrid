@@ -4,6 +4,7 @@ from dao.data_importer import DataImporter
 from dao.config import SQLALCHEMY_DATABASE_URI
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from tabulate import tabulate
 def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]: 
     """
     根据输入参数生成 GridConfig 实例和对应的 GridRow 列表
@@ -166,56 +167,22 @@ def test_generate_grid():
     print("\n所有测试通过！")
 
 
-def print_structured_grid_result(result: Dict[str, Any]):
-    import json
-    print("\n结构化网格结果:")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+def print_structured_grid_result(results: List[Dict[str, Any]]):
+    if not results:
+        print("⚠️ 无数据")
+        return
     
+    # 控制浮点数长度，避免太长太丑
+    pretty_results = []
+    for row in results:
+        pretty_results.append({
+            k: (round(v, 4) if isinstance(v, float) else v)
+            for k, v in row.items()
+        })
+    
+    headers = pretty_results[0].keys()
+    table = [row.values() for row in pretty_results]
+    print(tabulate(table, headers=headers, tablefmt="grid"))
 
-def print_grid_result_by_id(config_id: int):
-    """根据ID在数据库中查找并打印grid_result"""
-    import json
-    engine = create_engine(SQLALCHEMY_DATABASE_URI)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    try:
-        config = session.query(GridConfig).filter_by(id=config_id).first()
-        if not config:
-            print(f"未找到ID为 {config_id} 的网格配置")
-            return
-        rows = session.query(GridRow).filter_by(config_id=config_id).all()
-        result = {
-            "config": {
-                "id": config.id,
-                "name": getattr(config, 'name', None),
-                "last_modified": getattr(config, 'last_modified', None),
-                "a": config.a,
-                "b": config.b,
-                "first_trigger_price": config.first_trigger_price,
-                "total_rows": config.total_rows,
-                "buy_amount": config.buy_amount
-            },
-            "rows": [
-                {
-                    "id": row.id,
-                    "config_id": row.config_id,
-                    "fall_percent": row.fall_percent,
-                    "level_ratio": row.level_ratio,
-                    "buy_trigger_price": row.buy_trigger_price,
-                    "buy_price": row.buy_price,
-                    "buy_amount": row.buy_amount,
-                    "shares": row.shares,
-                    "sell_trigger_price": row.sell_trigger_price,
-                    "sell_price": row.sell_price,
-                    "yield_rate": row.yield_rate,
-                    "profit_amount": row.profit_amount
-                }
-                for row in rows
-            ]
-        }
-        print("\n结构化网格结果:")
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-    finally:
-        session.close()
 if __name__ == "__main__":
     test_generate_grid()

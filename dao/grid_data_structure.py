@@ -35,11 +35,19 @@ class IndexData(Base):
     
 
 
+class BaseModel:
+    def to_dict(self):
+        data = {}
+        for c in self.__table__.columns:
+            val = getattr(self, c.name)
+            if isinstance(val, datetime):
+                val = val.strftime("%Y-%m-%d %H:%M:%S")  # 格式化为字符串
+            data[c.name] = val
+        return data
 
 
 
-
-class GridConfig(Base):
+class GridConfig(Base, BaseModel):
     __tablename__ = 'GridConfig'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -61,7 +69,7 @@ class GridConfig(Base):
     
 
 
-class GridRow(Base):
+class GridRow(Base, BaseModel):
     __tablename__ = 'GridRow'
 
     id = Column(Integer, primary_key=True, autoincrement=True)

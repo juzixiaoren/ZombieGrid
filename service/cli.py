@@ -1,8 +1,8 @@
 import os
 import time,sys
 from dao.grid_data_structure import GridConfig
-from util.build_grid_model import generate_grid_from_input,print_structured_grid_result,save_grid_to_db,print_grid_result_by_id
-from dao.db_function_library import init_db
+from util.build_grid_model import generate_grid_from_input,print_structured_grid_result,save_grid_to_db
+from dao.db_function_library import *
 try:
     import msvcrt
     WINDOWS = True
@@ -46,7 +46,6 @@ def generate_grid_get_input():
     print("请输入网格参数：")
     
     name = input("请输入策略名称 (可选): ").strip() or None
-
     a = input_float("请输入波动捕捉大小参数 a (0.05~0.30): ", 0.05, 0.30)
     b = input_float("请输入每行收益率参数 b (0.05~0.30): ", 0.05, 0.30)
     first_trigger_price = input_float("请输入首个触发价 (例如 1.000): ", 0.0001)
@@ -108,13 +107,18 @@ def handle_generate():
                 return
 
         time.sleep(1)
+        
 
     print("\n⏪ 超时未操作，自动返回主菜单...")
     time.sleep(1)
+    save_grid_to_db(result)
+    print("✅ 策略已保存到数据库！")
+    time.sleep(1)
 def handle_view_history():
+    dbSessionManager = DBSessionManager()
     clear()
     print("=== 历史策略列表 ===")
-    configs = get_all_grid_configs()
+    configs = dbSessionManager.get_all_records('GridConfig')
     if not configs:
         print("📭 暂无策略记录")
         input("按回车返回主菜单...")
@@ -124,19 +128,27 @@ def handle_view_history():
         "ID", "名称", "最后修改时间", "a", "b", "行数"
     ))
     for cfg in configs:
+        last_modified_str = cfg.last_modified.strftime("%Y-%m-%d %H:%M") if cfg.last_modified else "无"
+        name_str = cfg.name if cfg.name is not None else "无"
         print("{:<4} {:<20} {:<20} {:<5} {:<5} {:<5}".format(
-            cfg.id, cfg.name, cfg.last_modified.strftime("%Y-%m-%d %H:%M"),
-            cfg.a, cfg.b, cfg.total_rows
+            cfg.id, name_str, last_modified_str, cfg.a, cfg.b, cfg.total_rows
         ))
 
     choice = input("请输入要查看的策略 ID: ").strip()
-    selected = get_grid_config_by_id(choice)
-    if not selected:
-        print("❌ 未找到该策略 ID")
+    try:
+        choice_id = int(choice)
+    except ValueError:
+        print("❌ 请输入有效的数字ID")
         input("按回车返回主菜单...")
         return
+    rows = dbSessionManager.get_record_by_any('GridRow', config_id=choice_id)
+    if not rows:
+        print(f"❌ 未找到ID为 {choice_id} 的策略")
+        input("按回车返回主菜单...")
+        return
+    dict_rows = [row.to_dict() for row in rows]
+    print_structured_grid_result(dict_rows)
 
-    print_grid_result_by_id(selected.id)
     input("按回车返回主菜单...")
     
     

@@ -4,3 +4,4 @@ pymysql
 pandas
 openpyxl
 Alembic
+tabulate

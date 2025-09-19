@@ -41,6 +41,10 @@ REM 强制清理可能残留的进程
 taskkill /F /IM node.exe /FI "WINDOWTITLE eq Frontend*" >nul 2>nul
 taskkill /F /IM python.exe /FI "WINDOWTITLE eq Backend*" >nul 2>nul
 
+REM 在新窗口运行主程序
+start "" python app.py
+
 call conda deactivate
 echo Environment deactivated.
 pause
+

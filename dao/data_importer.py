@@ -78,6 +78,7 @@ class DataImporter:
             # Step 1: 创建 GridConfig 实例
             config_data = result["config"]
             grid_config = GridConfig(
+            name=config_data.get("name"),
             a=config_data["a"],
             b=config_data["b"],
             first_trigger_price=config_data["first_trigger_price"],
