@@ -1,7 +1,7 @@
 import dao.db_function_library
 from typing import List, Dict, Any
 
-def backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
+def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
     """
     回测网格交易策略的核心逻辑
     :param grid_data: 历史价格数据列表，每个元素为字典，包含以下字段：
@@ -35,162 +35,281 @@ def backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
     - profit_amount: 盈利金额
     :return: 回测结果，包括交易记录，收益率等数据
     """
-    invested = 0.0  # 用于统计已投入资金
-    cash=0.0 #用于统计出售所得资金
     operate=[]  # 记录所有交易操作
-    maxRetracement=0.0  # 最大回撤
     max_cash_used = 0.0  # 最大占用资金
-    positions = {} # 记录当前持仓，键为buy_trigger_price，值为包含id, shares, status的字典列表
+    cash_used = 0.0  # 当前占用资金
+     # positions 结构：{ trigger: { strategy_id: {shares, status, ...} } }
+    positions = {}
+    def update_position(trigger, strategy_id, shares, status, current_date=None):
+        if trigger not in positions:
+            positions[trigger] = {}
+
+        if strategy_id not in positions[trigger]:
+            # 初始化
+            positions[trigger][strategy_id] = {
+                "shares": shares,
+                "status": status,
+                "last_action_date": current_date
+            }
+        else:
+            # 更新已有格子
+            pos = positions[trigger][strategy_id]
+            pos["shares"] = shares
+            pos["status"] = status
+            if current_date is not None:
+                pos["last_action_date"] = current_date
     for s in grid_strategy:
         trigger = s.get('buy_trigger_price')
-        if trigger is not None:  # 避免 None 键
-            # 用列表存同一触发价的多个策略，避免覆盖
-            positions.setdefault(trigger, []).append({
-                'id': s.get('id'),
+        sid = s.get('id')
+        if trigger is not None and sid is not None:
+            positions.setdefault(trigger, {})[sid] = {
                 'shares': s.get('shares', 0),
-                'status': None
-            })
-    # 第一天进行建仓
+                'status': None,
+                'last_action_date': None
+            }
     for i, grid in enumerate(grid_data):
         date = grid['date']
         open_p = float(grid.get('open_price'))
         low_p = float(grid.get('low_price'))
         high_p = float(grid.get('high_price'))
+        close_p = float(grid.get('close_price'))
 
         for strategy in grid_strategy:
-            trigger = strategy.get('buy_trigger_price')
+            buy_trigger = strategy.get('buy_trigger_price')
             buy_price = strategy.get('buy_price')
+            sell_trigger = strategy.get('sell_trigger_price')
+            sell_price = strategy.get('sell_price')
             buy_amount = float(strategy.get('buy_amount', 0))
 
             # 跳过无效策略/触发价
-            if trigger is None:
+            if buy_trigger is None:
                 continue
 
-            # 检查是否允许在这个 trigger 上买（你已有的校验函数）
-            if not check_positions(positions, date, "买入", trigger):
-                continue
-
-            executed_price = None # 实际成交价，None表示未成交
-
+            buy_executed_price = None # 实际成交价，None表示未成交
+            sell_executed_price = None # 实际卖出价，None表示未成交
+            # 第一天进行建仓
             if i == 0:
+                #检查是否允许买入
                 # 1 开盘价已经低于等于触发价 -> 以开盘价按市价成交
-                if open_p <= trigger:
-                    executed_price = open_p
+                if open_p <= buy_trigger and open_p <= buy_price:
+                    buy_executed_price = open_p
 
-                # 2 否则若当日曾下探到触发价（low <= trigger <= high）
+                # 2 否则若当日曾下探到触发价（low <= buy_trigger <= high）
                 #    则尝试以 limit 买入价成交（只有当买入价在当日区间时才认为成交）
-                elif low_p <= trigger <= high_p:
+                elif low_p <= buy_trigger <= high_p:
                     # 买入价必须在当日区间内才认为能成交
                     if (buy_price is not None) and (low_p <= buy_price <= high_p):
-                        executed_price = buy_price
+                        buy_executed_price = buy_price
                     else:
                         # 买入价不可达（例如低于当日最低或高于最高），不成交
-                        executed_price = None
+                        buy_executed_price = None
                 else:
                     # 开盘价高于触发价且当日未跌破触发价 -> 不建仓
-                    executed_price = None
-
+                    buy_executed_price = None
+                if buy_executed_price is not None:
+                    cash_used, max_cash_used = operate_buy_or_sell(
+                        action="买入",
+                        date=date,
+                        trigger=buy_trigger,
+                        strategy=strategy,
+                        executed_price=buy_executed_price,
+                        buy_amount=buy_amount,
+                        positions=positions,
+                        update_position=update_position,
+                        operate=operate,
+                        cash_used=cash_used,
+                        max_cash_used=max_cash_used,
+                        is_first_day=(i==0),
+                        is_last_day=(i==len(grid_data)-1)
+                    )
+                    continue  # 建仓后跳过卖出检查
+            #最后一天需要进行清仓
+            elif i == len(grid_data) - 1:
+                # 清仓逻辑：卖出所有持仓
+                pos = positions.get(buy_trigger, {}).get(strategy.get('id'))
+                if pos and pos.get('status') == "买入":
+                    if (open_p>= sell_trigger) and (open_p >= sell_price):
+                        sell_executed_price = open_p
+                    elif high_p >= sell_trigger:
+                        if (sell_price is not None) and (low_p <= sell_price <= high_p):
+                            sell_executed_price = sell_price
+                        else:
+                            sell_executed_price = close_p
+                    else:
+                        sell_executed_price = close_p
+                else:
+                    sell_executed_price = None
+                if sell_executed_price is not None:
+                    cash_used, max_cash_used = operate_buy_or_sell(
+                        action="卖出",
+                        date=date,
+                        trigger=buy_trigger,
+                        strategy=strategy,
+                        executed_price=sell_executed_price,
+                        buy_amount=buy_amount,
+                        positions=positions,
+                        update_position=update_position,
+                        operate=operate,
+                        cash_used=cash_used,
+                        max_cash_used=max_cash_used,
+                        is_first_day=(i==0),
+                        is_last_day=(i==len(grid_data)-1)
+                    )
             # ---------- 非首日（按照常规网格触发逻辑） ----------
             else:
-                # 常规逻辑：当天曾下探到触发价且买入价在当日区间则成交
-                if low_p <= trigger <= high_p:
+                # 卖出逻辑：当天曾冲高到卖出触发价且允许卖出
+                if high_p >= sell_trigger and check_positions(positions, date, "卖出", buy_trigger, strategy.get('id')):
+                    # 卖出触发价被触发，且允许卖出
+                    if (sell_price is not None) and (low_p <= sell_price <= high_p):
+                        # 卖出价在当日区间内，按卖出价成交
+                        sell_executed_price = sell_price
+                    else:
+                        # 卖出价不在当日区间内，不成交
+                        sell_executed_price = None
+                    # 如果决定成交，登记持仓、记录流水、更新统计
+                    if sell_executed_price is not None:
+                        cash_used, max_cash_used = operate_buy_or_sell(
+                            action="卖出",
+                            date=date,
+                            trigger=buy_trigger,
+                            strategy=strategy,
+                            executed_price=sell_executed_price,
+                            buy_amount=buy_amount,
+                            positions=positions,
+                            update_position=update_position,
+                            operate=operate,
+                            cash_used=cash_used,
+                            max_cash_used=max_cash_used,
+                            is_first_day=(i==0),
+                            is_last_day=(i==len(grid_data)-1)
+                        )
+                #买入逻辑：当天曾下探到买入触发价且允许买入
+                if low_p <= buy_trigger <= high_p and check_positions(positions, date, "买入", buy_trigger, strategy.get('id')):
                     if (buy_price is not None) and (low_p <= buy_price <= high_p):
-                        executed_price = buy_price
+                        buy_executed_price = buy_price
                     else:
                         # 如果没有明确的 buy_price，或者 buy_price 不在区间，
-                        # 可以选择用触发价作为市价成交（根据你的策略设计）
-                        # 这里我们 **严谨处理**：若无合适 buy_price，则不成交
-                        executed_price = None
-                else:
-                    executed_price = None
+                        # 这里严谨处理：若无合适 buy_price，则不成交
+                        buy_executed_price = None
+                    # 如果决定成交，登记持仓、记录流水、更新统计
+                    if buy_executed_price is not None:
+                        cash_used, max_cash_used = operate_buy_or_sell(
+                            action="买入",
+                            date=date,
+                            trigger=buy_trigger,
+                            strategy=strategy,
+                            executed_price=buy_executed_price,
+                            buy_amount=buy_amount,
+                            positions=positions,
+                            update_position=update_position,
+                            operate=operate,
+                            cash_used=cash_used,
+                            max_cash_used=max_cash_used,
+                            is_first_day=(i==0),
+                            is_last_day=(i==len(grid_data)-1)
+                        )
 
-            # 如果决定成交，登记持仓、记录流水、更新统计
-            if executed_price is not None:
-                # 计算实际成交份额（用成交价计算）
-                actual_shares = buy_amount / executed_price if executed_price > 0 else 0.0
-
-                # 在 positions 中找到第一个可用 slot（status 是 None）
-                pos_list = positions.get(trigger, [])
-                slot = None
-                for p in pos_list:
-                    if p.get('status') is None:
-                        slot = p
-                        break
-
-                # 如果没有可用 slot（理论上不会，但保险起见）
-                if slot is None:
-                    # 你可以选择 append 新 slot，或者跳过
-                    slot = {
-                        'id': strategy.get('id'),
-                        'status': None
-                    }
-                    pos_list.append(slot)
-                    positions[trigger] = pos_list
-
-                # 填充 slot 信息，标记为已买（等待卖出）
-                slot.update({
-                    'status': 'bought',
-                    'buy_price': executed_price,
-                    'buy_date': date,
-                    'shares': actual_shares,
-                    'cost': buy_amount
-                })
-
-                # 记录流水
-                operate.append({
-                    "date": date,
-                    "type": "买入",
-                    "trigger": trigger,
-                    "price": executed_price,
-                    "amount": buy_amount,
-                    "shares": actual_shares,
-                    "note": ("首日建仓" if i == 0 else "触发买入")
-                })
-
-                # 更新统计：已投入资金 & 最大占用
-                invested += buy_amount
-                # 这里的现金计算基于你用 invested-cash 的方式，如果另有 cash 逻辑请调整
-                max_cash_used = max(max_cash_used, invested - cash)
-
-                # 首日已处理完这个策略，继续下一个策略
-                continue
-        
-    for grid in grid_data[1:]:  # 从第二天开始
-        date=grid['date']
-        for strategy in grid_strategy:
-            if strategy['buy_trigger_price'] is not None and grid['low_price'] <= strategy['buy_trigger_price']and check_positions(positions, date, "买入", strategy['buy_trigger_price']):
-                # 触发买入
-                operate.append({
-                    "date": date,
-                    "type": "买入",
-                    "price": strategy['buy_price'],
-                    "amount": strategy['buy_amount'],
-                    "shares": strategy['shares'],
-                    "note": f"触发价 {strategy['buy_trigger_price']}, 买入价 {strategy['buy_price']}, 买入股数 {strategy['shares']}"
-                })
-            if strategy['sell_trigger_price'] is not None and grid['high_price'] >= strategy['sell_trigger_price']:
-                # 触发卖出
-                operate.append({
-                    "date": date,
-                    "type": "卖出",
-                    "price": strategy['sell_price'],
-                    "amount": strategy['sell_amount'],
-                    "shares": strategy['shares'],
-                    "note": f"触发价 {strategy['sell_trigger_price']}, 卖出价 {strategy['sell_price']}, 卖出股数 {strategy['shares']}"
-                })
-def check_positions(positions: Dict[float, List[Dict[str, Any]]], current_date: Any, action: str, trigger_price: float) -> bool:
+            
+            
+def check_positions(positions: Dict[float, Dict[int, Dict[str, Any]]], 
+                    current_date: Any, action: str, 
+                    trigger_price: float, strategy_id: int) -> bool:
     """
-    检查是否可以买入和卖出，同一天不能买入又卖出，同时已经买入的无法重复买入，已经卖出的无法重复卖出
+    检查某个具体策略格子是否可以买入/卖出
+    - 每个 strategy_id 唯一对应一个格子
+    - 一个格子同一天不能既买入又卖出
+    - 必须买过才能卖
+    - 不同格子互不影响
     """
-    if trigger_price not in positions:
+    if trigger_price not in positions or strategy_id not in positions[trigger_price]:
         return False
-    for pos in positions[trigger_price]:
-        if action == "买入":
-            if pos['status'] is None:  # 尚未买入
-                pos['status'] = '买入'
-                return True
-        elif action == "卖出":
-            if pos['status'] == '买入':  # 已买入，允许卖出
-                pos['status'] = '卖出'
-                return True
+
+    pos = positions[trigger_price][strategy_id]
+    last_date = pos.get("last_action_date")
+    status = pos.get("status")
+
+    if action == "买入":
+        if status is None or status == "卖出":  # 从未买过或已卖出
+            return True
+
+    elif action == "卖出":
+        if status == "买入" and last_date != current_date:  
+            # 必须已经买过，且不能和买入是同一天
+            return True
+
     return False
+def operate_buy_or_sell(
+    action: str,
+    date,
+    trigger,
+    strategy,
+    executed_price,
+    buy_amount,
+    positions,
+    update_position,
+    operate,
+    cash_used,
+    max_cash_used,
+    is_first_day=False,
+    is_last_day=False
+):
+    """统一处理买入或卖出操作的函数"""
+    strategy_id = strategy.get('id')
+    if action == "买入" and executed_price is not None:
+        actual_shares = buy_amount / executed_price if executed_price > 0 else 0.0
+        update_position(
+            trigger=trigger,
+            strategy_id=strategy_id,
+            shares=actual_shares,
+            status="买入",
+            current_date=date
+        )
+        note = "首日建仓" if is_first_day else "触发买入"
+        operate.append({
+            "date": date,
+            "type": "买入",
+            "strategy_id": strategy_id,
+            "trigger": trigger,
+            "price": executed_price,
+            "amount": buy_amount,
+            "shares": actual_shares,
+            "note": ("首日建仓" if is_first_day else "触发买入")
+        })
+        cash_used += buy_amount
+        max_cash_used = max(max_cash_used, cash_used)
+        print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f} | 备注: {note}")
+        print(f"当前占用资金: {cash_used:.2f}，最大占用资金: {max_cash_used:.2f}")
+        return cash_used, max_cash_used
+
+    if action == "卖出" and executed_price is not None:
+        pos = positions.get(trigger, {}).get(strategy_id)
+        if not pos or pos.get('status') != "买入":
+            print(f"警告：尝试卖出但无持仓，日期 {date}, 触发价 {trigger}, 策略ID {strategy_id}")
+            return cash_used, max_cash_used
+        sell_shares = pos.get('shares', 0) if pos else 0
+        sell_amount = sell_shares * executed_price
+        update_position(
+            trigger=trigger,
+            strategy_id=strategy_id,
+            shares=0.0,
+            status="卖出",
+            current_date=date
+        )
+        note = "最后一日清仓" if is_last_day else "触发卖出"
+        operate.append({
+            "date": date,
+            "type": "卖出",
+            "strategy_id": strategy_id,
+            "trigger": trigger,
+            "price": executed_price,
+            "amount": sell_amount,
+            "shares": sell_shares,
+            "note": ("最后一日清仓" if is_last_day else "触发卖出")
+        })
+        cash_used -= sell_amount
+        max_cash_used = max(max_cash_used, cash_used)
+        print(f"✅ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f} | 备注: {note}")
+        print(f"当前占用资金: {cash_used:.2f}，最大占用资金: {max_cash_used:.2f}")
+        return cash_used, max_cash_used
+
+    return cash_used, max_cash_used

@@ -4,7 +4,17 @@ from datetime import datetime
 
 Base = declarative_base()
 
-class IndexData(Base):
+class BaseModel:
+    def to_dict(self):
+        data = {}
+        for c in self.__table__.columns:
+            val = getattr(self, c.name)
+            if isinstance(val, datetime):
+                val = val.strftime("%Y-%m-%d %H:%M:%S")  # 格式化为字符串
+            data[c.name] = val
+        return data
+    
+class IndexData(Base,BaseModel):
     """
     指数数据表结构 - 用于数据库存储
     """
@@ -34,16 +44,6 @@ class IndexData(Base):
         return f"<IndexData(date='{self.date}', index_code='{self.index_code}')>"
     
 
-
-class BaseModel:
-    def to_dict(self):
-        data = {}
-        for c in self.__table__.columns:
-            val = getattr(self, c.name)
-            if isinstance(val, datetime):
-                val = val.strftime("%Y-%m-%d %H:%M:%S")  # 格式化为字符串
-            data[c.name] = val
-        return data
 
 
 

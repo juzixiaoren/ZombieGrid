@@ -3,6 +3,7 @@ import time,sys
 from dao.grid_data_structure import GridConfig
 from util.build_grid_model import generate_grid_from_input,print_structured_grid_result,save_grid_to_db
 from dao.db_function_library import *
+from util.backtest import run_backtest
 try:
     import msvcrt
     WINDOWS = True
@@ -80,7 +81,7 @@ def handle_generate():
                 key = msvcrt.getwch()
                 if key == '\r':  # 回车键
                     print("\n--- 生成的策略数据 ---")
-                    print_structured_grid_result(result)
+                    print_structured_grid_result(result["rows"])
                     print("是否保存该策略？ (y/n): ", end='', flush=True)
                     choice = input().strip().lower()
                     if choice == 'y':
@@ -175,11 +176,23 @@ def handle_backtest():
 
     choice = input("请输入要回测的策略 ID: ").strip()
     try:
-        
+        choice_id = int(choice)
     except ValueError:
         print("❌ 请输入有效的数字ID")
         input("按回车返回主菜单...")
         return
+    rows = dbSessionManager.get_record_by_any('GridRow', config_id=choice_id)
+    if not rows:
+        print(f"❌ 未找到ID为 {choice_id} 的策略")
+        input("按回车返回主菜单...")
+        return
+    grid_data_list = dbSessionManager.get_all_records('GridData')
+    grid_data = [row.to_dict() for row in grid_data_list]
+    grid_rows = dbSessionManager.get_record_by_any('GridRow', config_id=choice_id)
+    grid_strategy = [row.to_dict() for row in grid_rows]
+
+    result = run_backtest(grid_data, grid_strategy)
+    print("\n--- 回测结果 ---")
     input("按回车返回主菜单...")
     
 def input_float(prompt, min_value=None, max_value=None):

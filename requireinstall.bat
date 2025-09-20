@@ -19,6 +19,23 @@ if %errorlevel% neq 0 (
     call conda activate ZombieGrid_venv
 )
 
+REM 安装Python依赖
+if exist requirements.txt (
+    echo Installing Python dependencies from requirements.txt...
+    
+    REM 升级pip
+    python -m pip install --upgrade pip
+    
+    REM 直接使用requirements.txt安装所有依赖
+    pip install -r requirements.txt
+    
+    
+    echo ✓ All dependencies installed successfully!
+) else (
+    echo ✗ server\requirements.txt not found!
+    pause
+    exit /b 1
+)
 
 REM 强制清理可能残留的进程
 taskkill /F /IM node.exe /FI "WINDOWTITLE eq Frontend*" >nul 2>nul
