@@ -256,7 +256,8 @@ def operate_buy_or_sell(
     """统一处理买入或卖出操作的函数"""
     strategy_id = strategy.get('id')
     if action == "买入" and executed_price is not None:
-        actual_shares = buy_amount / executed_price if executed_price > 0 else 0.0
+        actual_shares = int(buy_amount / executed_price) if executed_price > 0 else 0
+        buy_amount = actual_shares * executed_price  # 实际买入金额
         update_position(
             trigger=trigger,
             strategy_id=strategy_id,
