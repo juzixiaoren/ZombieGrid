@@ -9,5 +9,5 @@ import os
 # }
 
 # 数据库文件名为 'zombiegrid.db'，并存放在项目根目录
-SQLALCHEMY_DATABASE_URI = "sqlite:///zombiegrid.db"
+SQLALCHEMY_DATABASE_URI = "sqlite:///data/zombiegrid.db"
 SQLALCHEMY_TRACK_MODIFICATIONS = False
