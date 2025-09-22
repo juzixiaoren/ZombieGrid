@@ -97,7 +97,7 @@ def handle_generate():
             if r:
                 sys.stdin.readline()
                 print("\n--- 生成的策略数据 ---")
-                print_structured_grid_result(result)
+                print_structured_grid_result(result["rows"])
                 print("是否保存该策略？ (y/n): ", end='', flush=True)
                 choice = input().strip().lower()
                 if choice == 'y':
