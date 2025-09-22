@@ -95,6 +95,8 @@ ombieGrid/
 数据库`zombiegrid.db`在开发阶段会上传到git，同步给所有成员。
 因此本部分命令理论上不需要执行。
 
+可以安装VScode的SQLite插件，直观查看.db的内容。
+
 若未创建数据库，你需要使用Alembic工具根据代码模型，在 `data/` 目录下创建并初始化 `zombiegrid.db` 数据库文件。
 
 * **确保你的Conda环境已激活 (`(ZombieGrid)`)**
