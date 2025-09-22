@@ -4,6 +4,7 @@ import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .config import SQLALCHEMY_DATABASE_URI
+from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 from .grid_data_structure import IndexData, Base,GridConfig,GridRow
 
@@ -35,16 +36,19 @@ class DataImporter:
             
             records = []
             # 处理JSON数据
+            # dao/data_importer.py
+
             for item in data:
-                # # 处理日期字段
-                # date_str = item.get('日期Date')
-                # if isinstance(date_str, str):
-                #     date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00')) if 'T' in date_str else datetime.strptime(date_str, '%Y-%m-%d')
-                # else:
-                #     date_obj = date_str
-                
+                # --- 开始修改 ---
+                # 1. 获取日期整数
+                date_int = item.get('日期Date')
+
+                # 2. 将整数转换为datetime对象，再提取date部分
+                date_obj = datetime.strptime(str(date_int), '%Y%m%d').date()
+
                 index_data = IndexData(
-                    date=item.get('日期Date'),
+                    date=date_obj, # <--- 使用转换后的日期对象
+                    # --- 结束修改 ---
                     index_code=item.get('指数代码Index Code'),
                     index_chinese_full_name=item.get('指数中文全称Index Chinese Name(Full)'),
                     index_chinese_short_name=item.get('指数中文简称Index Chinese Name'),
@@ -133,7 +137,7 @@ if __name__ == "__main__":
     importer = DataImporter(SQLALCHEMY_DATABASE_URI)
     
     # # 从JSON文件导入数据
-    json_file_path = os.path.join(BASE_DIR, "database_folder", "399971perf.json")
+    json_file_path = "data/database_folder/399971perf.json"
     importer.import_market_data_from_json(json_file_path)
     
     
