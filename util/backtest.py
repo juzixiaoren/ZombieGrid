@@ -1,6 +1,11 @@
 import dao.db_function_library
 from typing import List, Dict, Any
-
+import pandas as pd
+import numpy as np
+import numpy_financial as nf
+from math import sqrt
+from typing import Optional
+from scipy.optimize import newton
 def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
     """
     回测网格交易策略的核心逻辑
@@ -36,8 +41,11 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
     :return: 回测结果，包括交易记录，收益率等数据
     """
     operate=[]  # 记录所有交易操作
+    cash_balance=0.0  # 盈利现金
     max_cash_used = 0.0  # 最大占用资金
     cash_used = 0.0  # 当前占用资金
+    daily_records = []   # 每日快照
+    series_assert_holdings =[]  # 持仓市值
      # positions 结构：{ trigger: { strategy_id: {shares, status, ...} } }
     positions = {}
     def update_position(trigger, strategy_id, shares, status, current_date=None):
@@ -107,7 +115,7 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                     # 开盘价高于触发价且当日未跌破触发价 -> 不建仓
                     buy_executed_price = None
                 if buy_executed_price is not None:
-                    cash_used, max_cash_used = operate_buy_or_sell(
+                    cash_used, max_cash_used, cash_balance = operate_buy_or_sell(
                         action="买入",
                         date=date,
                         trigger=buy_trigger,
@@ -120,7 +128,8 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                         cash_used=cash_used,
                         max_cash_used=max_cash_used,
                         is_first_day=(i==0),
-                        is_last_day=(i==len(grid_data)-1)
+                        is_last_day=(i==len(grid_data)-1),
+                        cash_balance=cash_balance,
                     )
                     continue  # 建仓后跳过卖出检查
             #最后一天需要进行清仓
@@ -140,7 +149,7 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                 else:
                     sell_executed_price = None
                 if sell_executed_price is not None:
-                    cash_used, max_cash_used = operate_buy_or_sell(
+                    cash_used, max_cash_used, cash_balance = operate_buy_or_sell(
                         action="卖出",
                         date=date,
                         trigger=buy_trigger,
@@ -153,7 +162,8 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                         cash_used=cash_used,
                         max_cash_used=max_cash_used,
                         is_first_day=(i==0),
-                        is_last_day=(i==len(grid_data)-1)
+                        is_last_day=(i==len(grid_data)-1),
+                        cash_balance=cash_balance,
                     )
             # ---------- 非首日（按照常规网格触发逻辑） ----------
             else:
@@ -168,7 +178,7 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                         sell_executed_price = None
                     # 如果决定成交，登记持仓、记录流水、更新统计
                     if sell_executed_price is not None:
-                        cash_used, max_cash_used = operate_buy_or_sell(
+                        cash_used, max_cash_used, cash_balance = operate_buy_or_sell(
                             action="卖出",
                             date=date,
                             trigger=buy_trigger,
@@ -181,7 +191,8 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                             cash_used=cash_used,
                             max_cash_used=max_cash_used,
                             is_first_day=(i==0),
-                            is_last_day=(i==len(grid_data)-1)
+                            is_last_day=(i==len(grid_data)-1),
+                            cash_balance=cash_balance,
                         )
                 #买入逻辑：当天曾下探到买入触发价且允许买入
                 if low_p <= buy_trigger <= high_p and check_positions(positions, date, "买入", buy_trigger, strategy.get('id')):
@@ -193,7 +204,7 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                         buy_executed_price = None
                     # 如果决定成交，登记持仓、记录流水、更新统计
                     if buy_executed_price is not None:
-                        cash_used, max_cash_used = operate_buy_or_sell(
+                        cash_used, max_cash_used, cash_balance = operate_buy_or_sell(
                             action="买入",
                             date=date,
                             trigger=buy_trigger,
@@ -206,12 +217,87 @@ def run_backtest(grid_data: List[Dict], grid_strategy: List[Dict]) -> Dict:
                             cash_used=cash_used,
                             max_cash_used=max_cash_used,
                             is_first_day=(i==0),
-                            is_last_day=(i==len(grid_data)-1)
-                        )
+                            is_last_day=(i==len(grid_data)-1),
+                            cash_balance=cash_balance,
+                    )
+        # === 每日快照 ===
+        assert_holdings = sum(
+            pos.get("shares", 0) * close_p
+            for triggers in positions.values()
+            for pos in triggers.values()
+        )
+        series_assert_holdings.append(assert_holdings)
 
-            
-            
-def check_positions(positions: Dict[float, Dict[int, Dict[str, Any]]], 
+        daily_records.append({
+            "date": date,
+            "open": open_p,
+            "high": high_p,
+            "low": low_p,
+            "close": close_p,
+            "cash_used": cash_used,
+            "max_cash_used": max_cash_used,
+            "holding_value": assert_holdings,
+            "total_value": assert_holdings + cash_balance,  # 如果有现金余额的话这里加上
+        })
+
+    df_trades = pd.DataFrame(operate)       # 交易流水
+    df_daily = pd.DataFrame(daily_records)  # 每日快照
+    # 交易流水
+    print("\n--- 交易流水 ---")
+    print(df_trades.to_string(index=False))
+
+    print("\n--- 每日快照 ---")
+    print(df_daily.to_string(index=False))
+
+    # 计算 XIRR
+    if not df_daily.empty:
+        #将最大占用资金作为我们的 "初始资金"
+        initial_capital = df_daily['max_cash_used'].max()
+        # 计算每日账户总价值（持仓市值 + 现金余额）
+        df_daily['portfolio_value'] = df_daily['total_value'] + initial_capital
+        
+        print("\n--- 转换后的每日账户快照 (前5条) ---")
+        print(df_daily[['date', 'holding_value', 'total_value', 'portfolio_value']].head())
+
+        value_column_for_metrics = 'portfolio_value'
+    else:
+        # 如果没有数据，避免错误
+        initial_capital = 0
+        value_column_for_metrics = 'total_value' # Fallback
+    def compute_xirr_portfolio(df_daily_final, capital):
+        if df_daily_final.empty or capital == 0:
+            return None
+        
+        dates = [pd.to_datetime(df_daily_final.iloc[0]['date']), pd.to_datetime(df_daily_final.iloc[-1]['date'])]
+        cashflows = [-capital, df_daily_final.iloc[-1][value_column_for_metrics]]
+        
+        return xirr(np.array(cashflows), dates)
+
+    xirr_portfolio = compute_xirr_portfolio(df_daily, initial_capital)
+    print("\n--- 策略表现评估 (基于账户视角) ---")
+    print(f"初始资金 (最大占用资金): {initial_capital:.2f}")
+    print("账户XIRR (年化内部收益率):", xirr_portfolio)
+
+    # 2. 计算最大回撤
+    mdd = max_drawdown(df_daily[value_column_for_metrics])
+    print("最大回撤:", mdd)
+
+    # 3. 计算年化夏普比率
+    sharpe = compute_sharpe_from_daily(
+        df_daily,
+        value_col=value_column_for_metrics,
+        periods_per_year=252,
+        risk_free_rate_annual=0.03
+    )
+    print("年化夏普比,默认无风险利率为0.03:", sharpe)
+
+    # 4. 计算年化波动率
+    vol = annual_volatility(df_daily, value_col=value_column_for_metrics)
+    print("年化波动率:", vol)
+
+
+
+def check_positions(positions: Dict[float, Dict[int, Dict[str, Any]]],
                     current_date: Any, action: str, 
                     trigger_price: float, strategy_id: int) -> bool:
     """
@@ -249,9 +335,10 @@ def operate_buy_or_sell(
     update_position,
     operate,
     cash_used,
+    cash_balance,
     max_cash_used,
     is_first_day=False,
-    is_last_day=False
+    is_last_day=False,
 ):
     """统一处理买入或卖出操作的函数"""
     strategy_id = strategy.get('id')
@@ -265,28 +352,31 @@ def operate_buy_or_sell(
             status="买入",
             current_date=date
         )
+        positions[trigger][strategy_id]["buy_price"] = executed_price
         note = "首日建仓" if is_first_day else "触发买入"
-        operate.append({
+        row = {
             "date": date,
-            "type": "买入",
+            "action": "买入",
             "strategy_id": strategy_id,
             "trigger": trigger,
-            "price": executed_price,
-            "amount": buy_amount,
+            "executed_price": executed_price,
             "shares": actual_shares,
+            "amount": buy_amount,
             "note": ("首日建仓" if is_first_day else "触发买入")
-        })
+        }
+        operate.append(row)
         cash_used += buy_amount
         max_cash_used = max(max_cash_used, cash_used)
+        cash_balance -= buy_amount
         print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f} | 备注: {note}")
         print(f"当前占用资金: {cash_used:.2f}，最大占用资金: {max_cash_used:.2f}")
-        return cash_used, max_cash_used
+        return cash_used, max_cash_used, cash_balance
 
     if action == "卖出" and executed_price is not None:
         pos = positions.get(trigger, {}).get(strategy_id)
         if not pos or pos.get('status') != "买入":
             print(f"警告：尝试卖出但无持仓，日期 {date}, 触发价 {trigger}, 策略ID {strategy_id}")
-            return cash_used, max_cash_used
+            return cash_used, max_cash_used, cash_balance
         sell_shares = pos.get('shares', 0) if pos else 0
         sell_amount = sell_shares * executed_price
         update_position(
@@ -297,20 +387,125 @@ def operate_buy_or_sell(
             current_date=date
         )
         note = "最后一日清仓" if is_last_day else "触发卖出"
-        operate.append({
+        row = {
             "date": date,
-            "type": "卖出",
+            "action": "卖出",
             "strategy_id": strategy_id,
             "trigger": trigger,
-            "price": executed_price,
-            "amount": sell_amount,
+            "executed_price": executed_price,
             "shares": sell_shares,
+            "amount": sell_amount,
             "note": ("最后一日清仓" if is_last_day else "触发卖出")
-        })
-        cash_used -= sell_amount
+        }
+        operate.append(row)
+        cash_used -= pos.get('buy_price', 0) * sell_shares
         max_cash_used = max(max_cash_used, cash_used)
+        cash_balance += sell_amount
         print(f"✅ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f} | 备注: {note}")
         print(f"当前占用资金: {cash_used:.2f}，最大占用资金: {max_cash_used:.2f}")
-        return cash_used, max_cash_used
+        return cash_used, max_cash_used, cash_balance
 
-    return cash_used, max_cash_used
+    return cash_used, max_cash_used, cash_balance
+
+def max_drawdown(prices: pd.Series) -> float:
+    # 累计最大值
+    rolling_max = prices.cummax()
+    # 回撤率序列
+    drawdown = (prices - rolling_max) / rolling_max
+    # 取最小值（最深回撤）
+    return drawdown.min()
+
+def xirr(cashflows, dates):
+    """计算XIRR，cashflows为现金流数组，dates为对应日期数组"""
+    dates = pd.to_datetime(dates)
+    t0 = dates.min()
+    years = (dates - t0).days / 365.0
+
+    def npv(r):
+        return np.sum(cashflows / (1 + r) ** years)
+
+    try:
+        return newton(npv, 0.1)  # 初始猜测 10%
+    except RuntimeError:
+        return np.nan
+
+
+def compute_xirr(df_trades: pd.DataFrame, df_daily: pd.DataFrame):
+    """根据交易流水和每日净值计算策略XIRR"""
+    cashflows = []
+    dates = []
+
+    # 交易流水
+    for _, row in df_trades.iterrows():
+        if row["action"] == "买入":
+            cashflows.append(-row["amount"])
+            dates.append(pd.to_datetime(row["date"]))
+        elif row["action"] == "卖出":
+            cashflows.append(row["amount"])
+            dates.append(pd.to_datetime(row["date"]))
+
+    # 期末持仓市值（如果有）
+    last_row = df_daily.iloc[-1]
+    if last_row["holding_value"] > 0:
+        cashflows.append(last_row["holding_value"])
+        dates.append(pd.to_datetime(last_row["date"]))
+
+    cashflows = np.array(cashflows, dtype=float)
+    return xirr(cashflows, dates)
+def compute_sharpe_from_daily(df_daily: pd.DataFrame,
+                              value_col: str = "total_value",
+                              periods_per_year: int = 252,
+                              risk_free_rate_annual: float = 0.0) -> Optional[float]:
+    """
+    计算年化夏普比（基于 daily data）。
+    - df_daily: 包含每日快照且有日期列 'date' 或索引为日期，以及 value_col
+    - value_col: 用来计算净值/总资产的列名（默认 "total_value"）
+    - periods_per_year: 每年周期数（daily 默认 252，交易日；可改为365）
+    - risk_free_rate_annual: 年化无风险利率（小数形式，例如 0.03 表示 3%）
+    返回年化夏普比（float），若数据不足或计算失败返回 None。
+    """
+    # --- 准备净值序列 ---
+    if value_col not in df_daily.columns:
+        raise ValueError(f"df_daily 中没有列 '{value_col}'")
+
+    # 确保按日期排序
+    df = df_daily.copy()
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.sort_values("date").set_index("date")
+    else:
+        # 如果 index 已经是日期就不处理
+        df = df.sort_index()
+
+    series = df[value_col].astype(float).dropna()
+
+    # 需要至少两天数据才能计算收益率
+    if len(series) < 2:
+        return None
+
+    # --- 计算周期收益率（这里用 simple returns） ---
+    returns = series.pct_change().dropna()
+
+    # --- 无风险利率按周期拆分（年化->周期） ---
+    rf_per_period = (1 + risk_free_rate_annual) ** (1.0 / periods_per_year) - 1.0
+
+    # --- 超额收益 ---
+    excess_returns = returns - rf_per_period
+
+    # 若标准差为 0 则无法计算
+    std = excess_returns.std(ddof=1)
+    if std == 0 or np.isnan(std):
+        return None
+
+    mean_excess = excess_returns.mean()
+
+    # 年化：乘以 sqrt(N_periods_per_year)
+    sharpe_annual = (mean_excess / std) * sqrt(periods_per_year)
+    return float(sharpe_annual)
+
+def annual_volatility(df_daily: pd.DataFrame, value_col: str = 'portfolio_value'):
+    df = df_daily.copy()
+    df["return"] = df[value_col].pct_change()
+    returns = df["return"].dropna()
+    vol = returns.std() * np.sqrt(252)
+    return vol

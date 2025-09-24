@@ -5,3 +5,6 @@ pandas
 openpyxl
 Alembic
 tabulate
+numpy
+numpy-financial
+scipy
