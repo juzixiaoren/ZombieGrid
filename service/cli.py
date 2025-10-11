@@ -3,7 +3,7 @@ import time,sys
 from dao.grid_data_structure import GridConfig
 from util.build_grid_model import generate_grid_from_input,print_structured_grid_result,save_grid_to_db
 from dao.db_function_library import *
-from util.backtest import run_backtest
+from util.backtest import BackTest
 try:
     import msvcrt
     WINDOWS = True
@@ -190,8 +190,9 @@ def handle_backtest():
     grid_data = [row.to_dict() for row in grid_data_list]
     grid_rows = dbSessionManager.get_record_by_any('GridRow', config_id=choice_id)
     grid_strategy = [row.to_dict() for row in grid_rows]
+    backtest = BackTest(grid_data, grid_strategy)
 
-    result = run_backtest(grid_data, grid_strategy)
+    result = backtest.run_backtest()
     print("\n--- 回测结果 ---")
     input("按回车返回主菜单...")
     

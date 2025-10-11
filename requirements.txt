@@ -8,3 +8,4 @@ tabulate
 numpy
 numpy-financial
 scipy
+pyinstaller
