@@ -5,6 +5,7 @@ from datetime import datetime
 Base = declarative_base()
 
 class BaseModel:
+    """基础模型类，提供通用方法"""
     def to_dict(self):
         data = {}
         for c in self.__table__.columns:
@@ -14,9 +15,25 @@ class BaseModel:
             data[c.name] = val
         return data
     
+
+class ImportedFiles(Base, BaseModel):
+    """ 存储导入的原始xlsx信息 """
+    __tablename__ = 'ImportedFiles'
+
+    id = Column(Integer, primary_key=True, autoincrement=True, comment='单次导入的股价数据xlsx的主键ID')
+    file_name = Column(String(255), nullable=True, comment='股价xlsx的文件名')
+    index_code = Column(String(50), nullable=False, comment='指数代码')
+    import_time = Column(DateTime, default=datetime.utcnow, comment='导入的时间')
+    record_count = Column(Integer, nullable=True, comment='此次导入的记录数')
+    date_range = Column(String(50), nullable=True, comment='数据日期范围("YYYY-MM-DD ~ YYYY-MM-DD")')
+
+    def __repr__(self):
+        return f"<ImportedFiles(id={self.id}, file_name='{self.file_name}',index_code='{self.index_code}')>"
+
+    
 class IndexData(Base,BaseModel):
     """
-    指数数据表结构 - 用于数据库存储
+    存储导入的指数回测数据，每条主键是import_id，属性有日期、指数代码等
     """
     __tablename__ = 'GridData'
     
@@ -24,6 +41,7 @@ class IndexData(Base,BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # 字段定义
+    import_id = Column(Integer, ForeignKey('ImportedFiles.id', ondelete="CASCADE"), nullable=False, comment='从哪个ID的xlsx导入的')
     date = Column(Date, nullable=False, comment='日期')
     index_code = Column(String(50), nullable=False, comment='指数代码')
     index_chinese_full_name = Column(String(100), nullable=False, comment='指数中文全称')
@@ -41,13 +59,12 @@ class IndexData(Base,BaseModel):
     cons_number = Column(Integer, nullable=False, comment='样本数量')
     
     def __repr__(self):
-        return f"<IndexData(date='{self.date}', index_code='{self.index_code}')>"
+        return f"<IndexData(date='{self.date}', index_code='{self.index_code}',import_id='{self.import_id}')>"
     
 
 
-
-
 class GridConfig(Base, BaseModel):
+    """ 存储每个策略的配置参数，一个策略一行 """
     __tablename__ = 'GridConfig'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -70,6 +87,7 @@ class GridConfig(Base, BaseModel):
 
 
 class GridRow(Base, BaseModel):
+    """ 存储每个策略，一个策略total_rows行 """
     __tablename__ = 'GridRow'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
