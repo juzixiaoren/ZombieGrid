@@ -196,7 +196,7 @@ class BackTest:
         except Exception:
             return None
 
-    def max_drawdown(self, prices: pd.Series) -> Optional[float]:
+    def max_drawdown_from_peak(self, prices: pd.Series) -> Optional[float]:
         if prices is None or prices.empty:
             return None
         # 累计最大值
@@ -205,6 +205,18 @@ class BackTest:
         drawdown = (prices - rolling_max) / rolling_max
         # 取最小值（最深回撤）
         return drawdown.min()
+    
+    def max_drawdown_from_initial(self, prices: pd.Series, initial_capital: float) -> Optional[float]:
+        """计算最大回撤（相对初始资金）"""
+        if prices is None or prices.empty or initial_capital <= 0 or prices.isna().all():
+            return None
+        prices = prices.dropna()
+        if prices.empty: return None
+
+        drawdown = (prices - initial_capital) / initial_capital
+        min_drawdown = drawdown.min() # 最小值即最大亏损幅度
+        # 如果从未跌破初始资金，最小回撤是 0 或正数，我们应该返回 0 或负数的回撤
+        return float(min(0, min_drawdown)) if pd.notna(min_drawdown) else 0.0
 
     def compute_sharpe_from_daily(self, df_daily: pd.DataFrame,
                                   value_col: str = "total_value",
@@ -531,35 +543,45 @@ class BackTest:
         self.print_trades_and_daily(df_trades, df_daily)
 
         # 计算 XIRR、最大回撤、夏普比等指标
-        #计算XIRR
+        df_trades = pd.DataFrame(self.operate)
+        df_daily = pd.DataFrame(self.daily_records)
+        self.print_trades_and_daily(df_trades, df_daily) # 打印流水和快照
+
+        # --- 计算指标 ---
         xirr_portfolio = None
-        # 使用 total_value 作为账户净值
+        mdd_peak = None # 修改变量名
+        mdd_initial = None # 新增变量
+        sharpe = None
+        vol = None
+        value_column_for_metrics = "total_value"
+
         if not df_daily.empty:
-            value_column_for_metrics = "total_value"
-            try:
-                xirr_portfolio = self.compute_xirr(df_trades, df_daily)
-            except Exception:
-                xirr_portfolio = None
-        else:
-            value_column_for_metrics = "total_value"
-            xirr_portfolio = None
-        print("策略XIRR:", xirr_portfolio)
-        # 2. 计算最大回撤
-        mdd = self.max_drawdown(df_daily[value_column_for_metrics]) if not df_daily.empty else None
-        print("最大回撤:", mdd)
+            daily_values = df_daily[value_column_for_metrics]
+            try: xirr_portfolio = self.compute_xirr(df_trades, df_daily)
+            except Exception: xirr_portfolio = None # 保持不变
 
-        # 3. 计算年化夏普比率
-        sharpe = self.compute_sharpe_from_daily(
-            df_daily,
-            value_col=value_column_for_metrics,
-            periods_per_year=252,
-            risk_free_rate_annual=0.03
-        )
-        print("年化夏普比,默认无风险利率为0.03:", sharpe)
+            # --- 修改：调用两个回撤函数 ---
+            try: mdd_peak = self.max_drawdown_from_peak(daily_values)
+            except Exception: mdd_peak = None
+            try: mdd_initial = self.max_drawdown_from_initial(daily_values, self.initial_capital)
+            except Exception: mdd_initial = None
+            # --- 修改结束 ---
 
-        # 4. 计算年化波动率
-        vol = self.annual_volatility(df_daily, value_col=value_column_for_metrics)
-        print("年化波动率:", vol)
+            try: sharpe = self.compute_sharpe_from_daily(df_daily, value_col=value_column_for_metrics, risk_free_rate_annual=0.03)
+            except Exception: sharpe = None # 保持不变
+            try: vol = self.annual_volatility(df_daily, value_col=value_column_for_metrics)
+            except Exception: vol = None # 保持不变
+
+        # --- 修改：run_backtest 内部打印 ---
+        print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
+        print(f"策略 XIRR: {xirr_portfolio}")
+        # 修改标签
+        print(f"最大回撤 (相对峰值): {mdd_peak}")
+        # 新增打印
+        print(f"最大回撤 (相对初始): {mdd_initial}")
+        print(f"年化夏普比 (rf=0.03): {sharpe}")
+        print(f"年化波动率: {vol}")
+        # --- 修改结束 ---
 
         return {
             "df_trades": df_trades,
@@ -567,7 +589,10 @@ class BackTest:
             "metrics": {
                 "initial_capital": self.initial_capital,
                 "xirr": xirr_portfolio,
-                "max_drawdown": mdd,
+                # --- 修改：使用新 key ---
+                "max_drawdown_peak": mdd_peak,
+                "max_drawdown_initial": mdd_initial,
+                # --- 修改结束 ---
                 "sharpe": sharpe,
                 "volatility": vol,
             }

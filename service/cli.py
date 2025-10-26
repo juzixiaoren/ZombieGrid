@@ -6,6 +6,8 @@ import sys
 from typing import List, Dict, Any, Optional
 from tabulate import tabulate
 import traceback # 用于打印详细错误
+from datetime import datetime
+import pandas as pd
 
 # 假设你的项目结构能正确导入这些模块
 try:
@@ -532,6 +534,11 @@ def handle_backtest():
     try:
         backtest = BackTest(grid_data, grid_strategy) # 假设 BackTest 接受字典列表
         result = backtest.run_backtest() # 假设内部打印流水/快照
+        df_trades = result.get("df_trades") if result else pd.DataFrame()
+        df_daily = result.get("df_daily") if result else pd.DataFrame()
+        # 确保即使键存在但值为 None 时也是 DataFrame
+        if df_trades is None: df_trades = pd.DataFrame()
+        if df_daily is None: df_daily = pd.DataFrame()
 
         print("\n" + "-" * 40)
         print("--- 回测指标总结 ---")
@@ -546,10 +553,61 @@ def handle_backtest():
             else: return str(value)
 
         print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2%')}")
-        print(f"{'最大回撤':<15}: {format_metric(metrics.get('max_drawdown'), '.2%')}")
+        print(f"{'最大回撤 (相对峰值)':<18}: {format_metric(metrics.get('max_drawdown_peak'), '.2%')}")
+        print(f"{'最大回撤 (相对初始)':<18}: {format_metric(metrics.get('max_drawdown_initial'), '.2%')}")
         print(f"{'年化夏普比':<15}: {format_metric(metrics.get('sharpe'), '.2f')}")
         print(f"{'年化波动率':<15}: {format_metric(metrics.get('volatility'), '.2%')}")
         print("-" * 40)
+
+    # --- 3. 新增：保存结果到 Excel ---
+        if result: # 确保回测成功执行了
+            print("\n正在保存回测结果到 Excel 文件...")
+            # 3.1 创建结果目录
+            results_dir = "reports"
+            os.makedirs(results_dir, exist_ok=True)
+
+            # 3.2 生成文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            strategy_name_part = selected_config.name if selected_config.name else f"ID{strategy_id}"
+            # 替换掉策略名中可能不适合做文件名的字符 (简化处理，只替换空格和冒号)
+            strategy_name_part = strategy_name_part.replace(" ", "_").replace(":", "-")
+            index_code_part = selected_import_record.index_code
+            import_id_part = selected_import_id
+            filename = f"回测结果 {timestamp} - {strategy_name_part} {index_code_part} import_id {import_id_part}.xlsx"
+            filepath = os.path.join(results_dir, filename)
+
+            # 3.3 准备数据
+            # 指标数据
+            metrics_df = pd.DataFrame(list(metrics.items()), columns=['指标 (Metric)', '值 (Value)'])
+            # 策略配置数据
+            config_dict = selected_config.to_dict() # 假设模型有 to_dict 方法
+            # 移除 'rows' 关联，避免写入 Excel
+            if 'rows' in config_dict: del config_dict['rows']
+            if 'last_modified' in config_dict and isinstance(config_dict['last_modified'], datetime):
+                 config_dict['last_modified'] = config_dict['last_modified'].strftime("%Y-%m-%d %H:%M:%S")
+
+            config_df = pd.DataFrame([config_dict]) # 单行 DataFrame
+            # 策略行数据 (grid_strategy 是 List[Dict])
+            strategy_rows_df = pd.DataFrame(grid_strategy)
+
+            # 3.4 写入 Excel
+            try:
+                with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
+                    metrics_df.to_excel(writer, sheet_name='指标总览 (Metrics)', index=False)
+                    df_daily.to_excel(writer, sheet_name='每日快照 (Daily)', index=False)
+                    df_trades.to_excel(writer, sheet_name='交易流水 (Trades)', index=False)
+                    # 将策略配置和行写入同一 Sheet，配置在上，行数据在下
+                    config_df.to_excel(writer, sheet_name='策略详情 (Strategy)', index=False, startrow=0)
+                    # 加一个空行和标题
+                    pd.DataFrame([{"---": "---"}] * 2).to_excel(writer, sheet_name='策略详情 (Strategy)', index=False, header=False, startrow=config_df.shape[0] + 1) # 空行
+                    pd.DataFrame([{"网格行数据 (Grid Rows)": ""}]).to_excel(writer, sheet_name='策略详情 (Strategy)', index=False, header=True, startrow=config_df.shape[0] + 3) # 标题行
+                    strategy_rows_df.to_excel(writer, sheet_name='策略详情 (Strategy)', index=False, startrow=config_df.shape[0] + 4) # 行数据
+
+                print(f"✅ 回测结果已保存至: {filepath}")
+            except Exception as e_save:
+                print(f"\n❌ 保存 Excel 文件时出错: {e_save}")
+        # --- 保存结束 ---
+    
     except Exception as e:
         print(f"\n⚠️ 回测过程中发生错误: {e}")
         # traceback.print_exc()

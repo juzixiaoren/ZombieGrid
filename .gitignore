@@ -1,6 +1,6 @@
 .DS_Store
-#忽略Python编译文件
 __pycache__/
 *.pyc
 *.yml
 /dao/__pycache__
+reports/*
