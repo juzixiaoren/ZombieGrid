@@ -17,7 +17,7 @@ class BaseModel:
     
 
 class ImportedFiles(Base, BaseModel):
-    """ 存储导入的原始xlsx信息 """
+    """ 导入的原始xlsx的信息，每一次导入都有一个主键id """
     __tablename__ = 'ImportedFiles'
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment='单次导入的股价数据xlsx的主键ID')
@@ -33,7 +33,7 @@ class ImportedFiles(Base, BaseModel):
     
 class IndexData(Base,BaseModel):
     """
-    存储导入的指数回测数据，每条主键是import_id，属性有日期、指数代码等
+    存储导入的指数回测数据，每条有一个import_id属性记录来源于哪一次导入，属性有日期、指数代码等
     """
     __tablename__ = 'GridData'
     

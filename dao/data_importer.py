@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from .config import SQLALCHEMY_DATABASE_URI
 from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-from .grid_data_structure import IndexData, Base,GridConfig,GridRow
+from .grid_data_structure import IndexData, Base,GridConfig,GridRow, ImportedFiles
 
 class DataImporter:
     """
@@ -24,19 +24,40 @@ class DataImporter:
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
-    def import_market_data_from_json(self, json_file_path):
+    def import_market_data_from_json(self, json_file_path, file_name=None):
         """
         直接从JSON文件导入数据到GridData表
+        导入时应先在ImportedFiles表中创建本次导入的记录，然后将import_id关联到GridData表中
         :param json_file_path: JSON文件路径
         """
+        imported_file_record = None
+
         try:
-            # 读取JSON文件
+            # 读取JSON文件，创建导入记录
             with open(json_file_path, 'r', encoding='utf-8') as file:
                 data = json.load(file)
+
+            if not data:
+                print("JSON文件为空或格式不正确")
+                return False
             
             records = []
-            # 处理JSON数据
-            # dao/data_importer.py
+            min_date, max_date = None, None
+            first_record = data[0]
+            index_code_from_data = first_record.get('指数代码Index Code') # index_code 是xlsx里写的指数代码
+            
+            
+            imported_file_record = ImportedFiles(
+                file_name=file_name,
+                index_code = index_code_from_data,
+                import_time=datetime.utcnow(),
+                record_count=len(data)
+            )
+            self.session.add(imported_file_record)
+            self.session.flush()  # 获取自动生成的ID
+            new_import_id = imported_file_record.id
+
+            # 准备GridData记录并关联import_id
 
             for item in data:
                 # --- 开始修改 ---
@@ -46,10 +67,18 @@ class DataImporter:
                 # 2. 将整数转换为datetime对象，再提取date部分
                 date_obj = datetime.strptime(str(date_int), '%Y%m%d').date()
 
+                if min_date is None or date_obj < min_date:
+                    min_date = date_obj
+                if max_date is None or date_obj > max_date:
+                    max_date = date_obj
+
+                
+
                 index_data = IndexData(
+                    import_id=new_import_id,
                     date=date_obj, # <--- 使用转换后的日期对象
                     # --- 结束修改 ---
-                    index_code=item.get('指数代码Index Code'),
+                    index_code=item.get('指数代码Index Code') if item.get('指数代码Index Code') is not None else "Unknown",
                     index_chinese_full_name=item.get('指数中文全称Index Chinese Name(Full)'),
                     index_chinese_short_name=item.get('指数中文简称Index Chinese Name'),
                     index_english_full_name=item.get('指数英文全称Index English Name(Full)'),
@@ -65,6 +94,11 @@ class DataImporter:
                     cons_number=int(item.get('样本数量ConsNumber') or 0)
                 )
                 records.append(index_data)
+
+            # 更新导入记录的日期范围
+            if min_date and max_date:
+                imported_file_record.date_range = f"{min_date.strftime('%Y-%m-%d')} ~ {max_date.strftime('%Y-%m-%d')}"
+                self.session.commit()  # 提交以保存导入记录的更新
             
             # 批量插入数据
             self.session.add_all(records)
