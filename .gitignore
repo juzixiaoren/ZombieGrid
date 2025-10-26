@@ -1,6 +1,5 @@
 .DS_Store
-__pycache__/
+**/__pycache__/
 *.pyc
 *.yml
-/dao/__pycache__
 reports/*
