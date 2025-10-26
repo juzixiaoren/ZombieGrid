@@ -13,6 +13,7 @@ def init_db():
     try:
         with engine.connect() as connection:
             print("数据库连接成功")
+            return True
     except OperationalError:
         print("数据库连接失败，请检查配置(在config.py中,检查MySQL的用户名，密码，端口，数据库名等)")
         return None
