@@ -1,5 +1,5 @@
 # ZombieGrid (网格交易回测神器)
-> 2025-9-22
+> 2025-10-27
 
 本项目是一个基于命令行的量化交易回测工具，旨在实现并验证特定网格交易策略。
 
@@ -12,24 +12,30 @@
 ## 项目结构
 
 ```
-ombieGrid/
+ZombieGrid/
 ├── 📄 alembic.ini             # Alembic的配置文件
 ├── 📄 app.py                  # ✅ 主程序入口
 ├── 📄 README.md               # 项目说明文档
+├── 📄 requirements.txt        # ✨ 项目依赖包
+├── 📄 qstart.bat              # ✨ (可选) 快速启动脚本
 │
 ├── 📂 alembic/                # 数据库版本管理、迁移工具
 │
 ├── 📂 data/                   # 所有数据文件
 │   ├── database_folder/      # 原始数据和中间文件
 │   │   ├── 399971perf.xlsx   # 原始行情数据 (Excel版)
-│   │   └── 399971perf.json   # 中间数据 (JSON版)
+│   │   ├── 399971perf.json   # 中间数据 (JSON版)
+│   │   └── Output_Test.json  # ✨ (可选) 测试输出文件
 │   └── zombiegrid.db       # ✅ 核心：SQLite数据库文件
 │
 ├── 📂 dao/                    # 数据库交互层 (Data Access Object)
 │   ├── config.py             # 数据库连接配置
-│   ├── grid_data_structure.py # ✅ 核心：定义了三张表的“长相”
+│   ├── grid_data_structure.py # ✅ 核心：定义了数据库多张表的“长相”
 │   ├── data_importer.py      # 将JSON数据导入数据库
+│   ├── data_exporter.py      # ✨ 将回测结果导出为文件
 │   └── db_function_library.py # 提供查询数据库的函数
+│
+├── 📂 reports/                # ✨ (新增) 存放回测结果报告
 │
 ├── 📂 service/                # 用户服务层
 │   └── cli.py                # ✅ 前端命令行界面
