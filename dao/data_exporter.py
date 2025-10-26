@@ -60,7 +60,7 @@ class DataExporter:
                     'index_chinese_full_name': data.index_chinese_full_name,
                     'index_chinese_short_name': data.index_chinese_short_name,
                     'index_english_full_name': data.index_english_full_name,
-                    'index_english_short_name': data.index_english_short_name,
+                    # 'index_english_short_name': data.index_english_short_name,
                     'open_price': float(data.open_price) if data.open_price is not None else 0.0,
                     'high_price': float(data.high_price) if data.high_price is not None else 0.0,
                     'low_price': float(data.low_price) if data.low_price is not None else 0.0,

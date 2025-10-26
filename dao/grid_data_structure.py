@@ -47,7 +47,7 @@ class IndexData(Base,BaseModel):
     index_chinese_full_name = Column(String(100), nullable=False, comment='指数中文全称')
     index_chinese_short_name = Column(String(50), nullable=False, comment='指数中文简称')
     index_english_full_name = Column(String(100), nullable=False, comment='指数英文全称')
-    index_english_short_name = Column(String(50), nullable=False, comment='指数英文简称')
+    # index_english_short_name = Column(String(50), nullable=False, comment='指数英文简称')
     open_price = Column(Float, nullable=False, comment='开盘价')
     high_price = Column(Float, nullable=False, comment='最高价')
     low_price = Column(Float, nullable=False, comment='最低价')

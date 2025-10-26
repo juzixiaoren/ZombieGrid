@@ -112,7 +112,10 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
 def save_grid_to_db(result: Dict[str, Any]):
     """将生成的网格配置和行保存到数据库"""
     data_importer = DataImporter(SQLALCHEMY_DATABASE_URI)
-    data_importer.import_grid_model(result)
+    success = data_importer.import_grid_model(result)
+    # print(f"数据导入结果: {'成功' if success else '失败'}")
+    data_importer.close()
+    return success
 
 def test_generate_grid():
     """测试函数"""

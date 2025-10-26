@@ -82,7 +82,7 @@ class DataImporter:
                     index_chinese_full_name=item.get('指数中文全称Index Chinese Name(Full)'),
                     index_chinese_short_name=item.get('指数中文简称Index Chinese Name'),
                     index_english_full_name=item.get('指数英文全称Index English Name(Full)'),
-                    index_english_short_name=item.get('指数英文简称Index English Name'),
+                    # index_english_short_name=item.get('指数英文简称Index English Name'),
                     open_price=float(item.get('开盘Open') or 0),
                     high_price=float( item.get('最高High') or 0),
                     low_price=float(item.get('最低Low') or 0),
