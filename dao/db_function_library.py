@@ -132,4 +132,32 @@ class DBSessionManager:
             print(f"删除 Import ID {import_id} 的数据时出错: {e}")
             return False
     
+    def delete_strategy_by_id(self, config_id: int) -> bool:
+        """根据 GridConfig 的 config_id 删除策略记录"""
+        if not config_id:
+            print("错误：config_id 无效")
+            return False
+        
+        strategy_record = self.get_record_by_id('GridConfig', config_id)
+        if not strategy_record:
+            # get_record_by_id 内部会打印未找到
+            return False
+
+        try:
+            print(f"正在删除 GridConfig ID: {config_id} 的策略数据...")
+
+            self.session.delete(strategy_record)
+            self.session.commit()
+            print("✅ 删除成功。")
+            return True
+        except Exception as e:
+            self.session.rollback()
+            print(f"❌ 删除 GridConfig ID {config_id} 的数据时出错: {e}")
+            return False
+    
+    def close(self): # 确保有 close 方法
+        """关闭数据库会话"""
+        if self.session:
+            self.session.close()
+    
     

@@ -150,6 +150,7 @@ def handle_strategy_management():
     strategy_menu = {
         '1': ('新建策略', handle_create_strategy),
         '2': ('查看已有策略', handle_view_strategies),
+        '3': ('删除策略', handle_delete_strategy),
         # 'b': ('返回主菜单', None)
     }
     while True:
@@ -290,6 +291,59 @@ def handle_view_strategies():
             print(f"\n格式化或打印策略详情时出错: {e}")
     input("\n按任意键返回列表...")
 
+def handle_delete_strategy():
+    """处理删除策略的逻辑"""
+    db_manager = DBSessionManager() # 用于查询列表
+    configs = []
+    try:
+        with db_manager as session:
+            configs = session.query(GridConfig).order_by(GridConfig.id).all()
+    except Exception as e:
+        print(f"查询策略列表时出错: {e}")
+        input("\n按任意键返回...")
+        return
+
+    # 复用查看策略时的显示函数
+    def display_config_for_delete(cfg: GridConfig):
+        last_modified_str = cfg.last_modified.strftime("%Y-%m-%d %H:%M") if cfg.last_modified else "无"
+        name_str = cfg.name if cfg.name else "无名称"
+        return f"ID: {cfg.id:<4} | 名称: {name_str:<15} | a={cfg.a:<4.2f} | b={cfg.b:<4.2f} | 行数: {cfg.total_rows:<3} | 修改: {last_modified_str}"
+
+    # 手动打印标题
+    clear()
+    print("【网格交易神器】>【策略管理】>【删除策略】")
+    list_not_empty = display_list_with_index(configs, display_config_for_delete, show_empty_message=True)
+
+    choice = get_index_input(len(configs))
+    if choice == 'b' or choice is None: return # 返回
+
+    selected_config = configs[choice - 1]
+    config_id_to_delete = selected_config.id
+    strategy_name = selected_config.name or f"ID {config_id_to_delete}"
+
+    # 再次确认删除
+    prompt = (f"⚠️ 警告：确定要删除策略 '{strategy_name}' (ID: {config_id_to_delete}) 吗？\n"
+              f"   所有相关的网格行数据 ({selected_config.total_rows} 行) 也将被永久删除且无法恢复！")
+
+    if confirm_action(prompt):
+        print(f"\n正在删除策略 ID: {config_id_to_delete}...")
+        delete_success = False
+        # 使用新的 DBSessionManager 实例来执行删除操作
+        delete_manager = DBSessionManager()
+        try:
+            # 调用新添加的数据库删除方法
+            delete_success = delete_manager.delete_strategy_by_id(config_id_to_delete)
+            if not delete_success:
+                print("删除操作失败。") # delete_strategy_by_id 内部会打印详细错误
+        except Exception as e:
+            print(f"执行删除时发生意外错误: {e}")
+            # traceback.print_exc()
+        finally:
+            delete_manager.close() # 关闭 session
+    else:
+        print("操作已取消。")
+
+    input("\n按任意键返回...")
 
 def handle_import_market_data():
     """处理导入行情数据的逻辑 (改为粘贴路径)"""
