@@ -45,7 +45,7 @@ class BackTest:
             sid = s.get('id')
             if trigger is not None and sid is not None:
                 self.positions.setdefault(trigger, {})[sid] = {
-                    'shares': s.get('shares', 0),
+                    'shares': 0.0,
                     'status': None,
                     'last_action_date': None
                 }
