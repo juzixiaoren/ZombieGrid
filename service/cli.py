@@ -606,7 +606,7 @@ def handle_backtest():
             elif value is None: return 'N/A'
             else: return str(value)
 
-        print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2%')}")
+        print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2f')}%")
         print(f"{'最大回撤 (相对峰值)':<18}: {format_metric(metrics.get('max_drawdown_peak'), '.2%')}")
         print(f"{'最大回撤 (相对初始)':<18}: {format_metric(metrics.get('max_drawdown_initial'), '.2%')}")
         print(f"{'年化夏普比':<15}: {format_metric(metrics.get('sharpe'), '.2f')}")
