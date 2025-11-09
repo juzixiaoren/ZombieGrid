@@ -10,3 +10,6 @@ reports/*
 /service/__pycache__
 /util/__pycache__
 /service/__pycache__
+/dist
+/build
+/service/__pycache__
