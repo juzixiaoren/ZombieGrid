@@ -38,6 +38,8 @@ class BackTest:
         self.series_assert_holdings: List[float] = []  # 持仓市值
         # positions 结构：{ trigger: { strategy_id: {shares, status, ...} } }
         self.positions: Dict[Any, Dict[int, Dict[str, Any]]] = {}
+        self.sell_num= 0 #卖出次数
+        self.buy_num = 0 #买入次数
 
         # 初始化 positions（将 grid_strategy 的格子写入 positions）
         for s in self.grid_strategy:
@@ -341,6 +343,7 @@ class BackTest:
             self.cash_balance -= buy_amount
             print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
             print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
+            self.buy_num=self.buy_num + 1
             return self.cash_used, self.max_cash_used, self.cash_balance
 
         if action == "卖出" and executed_price is not None:
@@ -367,6 +370,8 @@ class BackTest:
             self.cash_balance += sell_amount
             print(f"✅ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f}")
             print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
+            if not is_last_day:
+                self.sell_num = self.sell_num + 1
             return self.cash_used, self.max_cash_used, self.cash_balance
 
         return self.cash_used, self.max_cash_used, self.cash_balance
@@ -542,11 +547,6 @@ class BackTest:
         # 交易流水
         self.print_trades_and_daily(df_trades, df_daily)
 
-        # 计算 XIRR、最大回撤、夏普比等指标
-        df_trades = pd.DataFrame(self.operate)
-        df_daily = pd.DataFrame(self.daily_records)
-        self.print_trades_and_daily(df_trades, df_daily) # 打印流水和快照
-
         # --- 计算指标 ---
         xirr_portfolio = None
         mdd_peak = None # 修改变量名
@@ -559,14 +559,10 @@ class BackTest:
             daily_values = df_daily[value_column_for_metrics]
             try: xirr_portfolio = self.compute_xirr(df_trades, df_daily)
             except Exception: xirr_portfolio = None # 保持不变
-
-            # --- 修改：调用两个回撤函数 ---
             try: mdd_peak = self.max_drawdown_from_peak(daily_values)
             except Exception: mdd_peak = None
             try: mdd_initial = self.max_drawdown_from_initial(daily_values, self.initial_capital)
             except Exception: mdd_initial = None
-            # --- 修改结束 ---
-
             try: sharpe = self.compute_sharpe_from_daily(df_daily, value_col=value_column_for_metrics, risk_free_rate_annual=0.03)
             except Exception: sharpe = None # 保持不变
             try: vol = self.annual_volatility(df_daily, value_col=value_column_for_metrics)
@@ -575,9 +571,9 @@ class BackTest:
         # --- 修改：run_backtest 内部打印 ---
         print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
         print(f"策略 XIRR: {xirr_portfolio}")
-        # 修改标签
+        print(f"初始资金: {self.initial_capital}")
+        print(f"最大占用资金: {self.max_cash_used}")
         print(f"最大回撤 (相对峰值): {mdd_peak}")
-        # 新增打印
         print(f"最大回撤 (相对初始): {mdd_initial}")
         print(f"年化夏普比 (rf=0.03): {sharpe}")
         print(f"年化波动率: {vol}")
@@ -588,12 +584,13 @@ class BackTest:
             "df_daily": df_daily,
             "metrics": {
                 "initial_capital": self.initial_capital,
+                "max_cash_used":self.max_cash_used,
                 "xirr": xirr_portfolio,
-                # --- 修改：使用新 key ---
                 "max_drawdown_peak": mdd_peak,
                 "max_drawdown_initial": mdd_initial,
-                # --- 修改结束 ---
                 "sharpe": sharpe,
                 "volatility": vol,
+                "sell_num":self.sell_num,
+                "buy_num":self.buy_num
             }
         }

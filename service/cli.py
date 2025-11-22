@@ -605,12 +605,16 @@ def handle_backtest():
                 except (ValueError, TypeError): return str(value)
             elif value is None: return 'N/A'
             else: return str(value)
-
+        print(f"{'最大占用资金':<15}: {format_metric(metrics.get('max_cash_used'), ',.2f')}")
         print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2f')}%")
         print(f"{'最大回撤 (相对峰值)':<18}: {format_metric(metrics.get('max_drawdown_peak'), '.2%')}")
+        print(f"{'计算公式':<15}: {'MIN(峰值后的净值谷值 - 净值峰值) / 净值峰值 *100%'}")
         print(f"{'最大回撤 (相对初始)':<18}: {format_metric(metrics.get('max_drawdown_initial'), '.2%')}")
+        print(f"{'计算公式':<15}: {'MIN(净值谷值 - 初始资金) / 初始资金 *100%'}")
         print(f"{'年化夏普比':<15}: {format_metric(metrics.get('sharpe'), '.2f')}")
         print(f"{'年化波动率':<15}: {format_metric(metrics.get('volatility'), '.2%')}")
+        print(f"{'买入次数':<15}: {format_metric(metrics.get('buy_num'), 'd')}")
+        print(f"{'卖出次数':<15}: {format_metric(metrics.get('sell_num'), 'd')}")
         print("-" * 40)
 
     # --- 3. 新增：保存结果到 Excel ---
