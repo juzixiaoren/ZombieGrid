@@ -25,8 +25,11 @@ class BackTest:
                 for s in grid_strategy
             )
         )
+        
         if initial_capital is None:
             self.initial_capital = float(inferred_initial_capital)
+        else:
+            self.initial_capital = float(initial_capital)
 
         # 以下为 run_backtest 中原本的局部变量，改造为实例属性
         self.operate = []  # 记录所有交易操作
@@ -40,6 +43,9 @@ class BackTest:
         self.positions: Dict[Any, Dict[int, Dict[str, Any]]] = {}
         self.sell_num= 0 #卖出次数
         self.buy_num = 0 #买入次数
+        self.buy_fail_num = 0 #买入失败次数
+        self.triggered_rows = 0 #触发的格子数
+        self.triggered_set = set() #触发的格子集合
 
         # 初始化 positions（将 grid_strategy 的格子写入 positions）
         for s in self.grid_strategy:
@@ -323,6 +329,12 @@ class BackTest:
         """统一处理买入或卖出操作的函数（保留原变量和打印样式）"""
         strategy_id = strategy.get('id')
         if action == "买入" and executed_price is not None:
+            
+            if self.cash_balance < buy_amount:
+                print(f"❌ [{date}] 资金不足，无法买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 需要金额: {buy_amount:.2f} | 现金余额: {self.cash_balance:.2f}")
+                self.buy_fail_num = self.buy_fail_num + 1
+                return self.cash_used, self.max_cash_used, self.cash_balance
+
             actual_shares = int(buy_amount / executed_price) if executed_price > 0 else 0
             buy_amount = actual_shares * executed_price  # 实际买入金额
             self.update_position(trigger=trigger, strategy_id=strategy_id, shares=actual_shares, status="买入", current_date=date)
@@ -341,6 +353,7 @@ class BackTest:
             self.cash_used += buy_amount
             self.max_cash_used = max(self.max_cash_used, self.cash_used)
             self.cash_balance -= buy_amount
+            
             print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
             print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
             self.buy_num=self.buy_num + 1
@@ -365,10 +378,11 @@ class BackTest:
                 "note": ("最后一日清仓" if is_last_day else "触发卖出")
             }
             self.operate.append(row)
+            self.triggered_set.add(strategy_id)
             self.cash_used -= pos.get('buy_price', 0) * sell_shares
             self.max_cash_used = max(self.max_cash_used, self.cash_used)
             self.cash_balance += sell_amount
-            print(f"✅ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f}")
+            print(f"↗️ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f}")
             print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
             if not is_last_day:
                 self.sell_num = self.sell_num + 1
@@ -377,6 +391,7 @@ class BackTest:
         return self.cash_used, self.max_cash_used, self.cash_balance
 
     def update_position(self, trigger, strategy_id, shares, status, current_date=None):
+        
         if trigger not in self.positions:
             self.positions[trigger] = {}
 
@@ -568,6 +583,8 @@ class BackTest:
             try: vol = self.annual_volatility(df_daily, value_col=value_column_for_metrics)
             except Exception: vol = None # 保持不变
 
+        self.triggered_rows = len(self.triggered_set)
+
         # --- 修改：run_backtest 内部打印 ---
         print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
         print(f"策略 XIRR: {xirr_portfolio}")
@@ -591,6 +608,8 @@ class BackTest:
                 "sharpe": sharpe,
                 "volatility": vol,
                 "sell_num":self.sell_num,
-                "buy_num":self.buy_num
+                "buy_num":self.buy_num,
+                "triggered_rows": self.triggered_rows,
+                "buy_fail_num": self.buy_fail_num,
             }
         }

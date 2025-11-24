@@ -531,7 +531,7 @@ def handle_backtest():
         return f"ID: {cfg.id:<4} | 名称: {name_str:<15} | a={cfg.a:<4.2f} | b={cfg.b:<4.2f} | 行数: {cfg.total_rows:<3}"
 
     clear()
-    print("【网格交易神器】>【开始回测】\n[1/2] 选择策略\n")
+    print("【网格交易神器】>【开始回测】\n[1/3] 选择策略\n")
     list_not_empty_step1 = display_list_with_index(configs, display_config_for_backtest, show_empty_message=False)
     if not list_not_empty_step1: print("\n没有可用的策略。"); input("\n按任意键返回..."); return
 
@@ -561,7 +561,7 @@ def handle_backtest():
          return f"ID: {f.id:<4} | 文件: {f.file_name or 'N/A':<25} | Code: {f.index_code:<8} | 日期: {f.date_range or 'N/A'}"
 
     clear()
-    print("【网格交易神器】>【开始回测】\n[2/2] 选择数据批次\n")
+    print("【网格交易神器】>【开始回测】\n[2/3] 选择数据批次\n")
     list_not_empty_step2 = display_list_with_index(imported_files, display_import_info_for_backtest, show_empty_message=False)
     if not list_not_empty_step2: print("\n没有可用的回测数据。"); input("\n按任意键返回..."); return
 
@@ -578,6 +578,20 @@ def handle_backtest():
         grid_data = [row.to_dict() for row in grid_data_list]
     except Exception as e:
         print(f"\n加载行情数据时出错: {e}"); input("\n按任意键返回..."); return
+    
+    # --- 步骤 3: 输入初始资金 ---
+    clear()
+    print("【网格交易神器】>【开始回测】\n[3/3] 输入初始资金（默认：表格每行占用资金之和）\n")
+
+    initial_capital = input_with_cancel(f"请输入初始资金 (回车选择 {selected_config.total_rows * selected_config.buy_amount:,.2f} 。按 b 取消): ", str)
+    if initial_capital == 'b' : return
+    elif initial_capital is not None:
+        try:
+            initial_capital = float(initial_capital)
+            if float(initial_capital) <= 0:
+                print("❌ 初始资金必须为正数。"); input("\n按任意键返回..."); return
+        except ValueError:
+            print("❌ 无效的初始资金输入。"); input("\n按任意键返回..."); return
 
     # --- 执行回测 ---
     clear()
@@ -586,7 +600,7 @@ def handle_backtest():
     print(f"数据: {selected_import_record.file_name or 'N/A'} (ID: {selected_import_id}, Code: {selected_import_record.index_code})")
     print("-" * 40 + "\n")
     try:
-        backtest = BackTest(grid_data, grid_strategy) # 假设 BackTest 接受字典列表
+        backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
         result = backtest.run_backtest() # 假设内部打印流水/快照
         df_trades = result.get("df_trades") if result else pd.DataFrame()
         df_daily = result.get("df_daily") if result else pd.DataFrame()
@@ -597,7 +611,7 @@ def handle_backtest():
         print("\n" + "-" * 40)
         print("--- 回测指标总结 ---")
         metrics = result.get("metrics", {})
-        print(f"{'初始资金 (推断)':<15}: {metrics.get('initial_capital', 0):,.2f}")
+        print(f"{'初始资金':<15}: {metrics.get('initial_capital', 0):,.2f}")
 
         def format_metric(value, format_str):
             if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -606,15 +620,19 @@ def handle_backtest():
             elif value is None: return 'N/A'
             else: return str(value)
         print(f"{'最大占用资金':<15}: {format_metric(metrics.get('max_cash_used'), ',.2f')}")
+        print(f"{'触发表格买入行数':<15}: {format_metric(metrics.get('triggered_rows'), 'd')}")
+        print(f"{'买入次数':<15}: {format_metric(metrics.get('buy_num'), 'd')}")
+        print(f"{'买入失败次数':<15}: {format_metric(metrics.get('buy_fail_num'), 'd')}")
+        print(f"{'卖出次数':<15}: {format_metric(metrics.get('sell_num'), 'd')}")
+
+
         print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2f')}%")
         print(f"{'最大回撤 (相对峰值)':<18}: {format_metric(metrics.get('max_drawdown_peak'), '.2%')}")
-        print(f"{'计算公式':<15}: {'MIN(峰值后的净值谷值 - 净值峰值) / 净值峰值 *100%'}")
+        print(f"{'⬆️计算公式':<15}: {'MIN(峰值后的净值谷值 - 净值峰值) / 净值峰值 *100%'}")
         print(f"{'最大回撤 (相对初始)':<18}: {format_metric(metrics.get('max_drawdown_initial'), '.2%')}")
-        print(f"{'计算公式':<15}: {'MIN(净值谷值 - 初始资金) / 初始资金 *100%'}")
+        print(f"{'⬆️计算公式':<15}: {'MIN(净值谷值 - 初始资金) / 初始资金 *100%'}")
         print(f"{'年化夏普比':<15}: {format_metric(metrics.get('sharpe'), '.2f')}")
         print(f"{'年化波动率':<15}: {format_metric(metrics.get('volatility'), '.2%')}")
-        print(f"{'买入次数':<15}: {format_metric(metrics.get('buy_num'), 'd')}")
-        print(f"{'卖出次数':<15}: {format_metric(metrics.get('sell_num'), 'd')}")
         print("-" * 40)
 
     # --- 3. 新增：保存结果到 Excel ---
