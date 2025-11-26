@@ -86,3 +86,5 @@ urllib3==2.5.0
 wheel==0.45.1
 win_inet_pton==1.1.0
 zstandard==0.23.0
+scikit-learn==1.5.1
+scikit-optimize==0.10.0
