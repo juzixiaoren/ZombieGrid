@@ -9,13 +9,15 @@ from scipy.optimize import newton
 
 
 class BackTest:
-    def __init__(self, grid_data: List[Dict], grid_strategy: List[Dict], initial_capital: Optional[float] = None):
+    def __init__(self, grid_data: List[Dict], grid_strategy: List[Dict], initial_capital: Optional[float] = None, verbose: bool = True):
         """
         回测网格交易策略的核心逻辑封装为类
         保留原有注释与变量名，尽量不改变外部接口命名
         """
         self.grid_data = grid_data
         self.grid_strategy = grid_strategy
+        self.verbose = verbose
+        
 
         # 推断初始资金：优先使用每个格子的 buy_amount（若缺失则用 shares*buy_price）
         inferred_initial_capital = float(
@@ -331,7 +333,8 @@ class BackTest:
         if action == "买入" and executed_price is not None:
             
             if self.cash_balance < buy_amount:
-                print(f"❌ [{date}] 资金不足，无法买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 需要金额: {buy_amount:.2f} | 现金余额: {self.cash_balance:.2f}")
+                if self.verbose:
+                    print(f"❌ [{date}] 资金不足，无法买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 需要金额: {buy_amount:.2f} | 现金余额: {self.cash_balance:.2f}")
                 self.buy_fail_num = self.buy_fail_num + 1
                 return self.cash_used, self.max_cash_used, self.cash_balance
 
@@ -353,16 +356,17 @@ class BackTest:
             self.cash_used += buy_amount
             self.max_cash_used = max(self.max_cash_used, self.cash_used)
             self.cash_balance -= buy_amount
-            
-            print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
-            print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
+            if self.verbose:
+                print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
+                print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
             self.buy_num=self.buy_num + 1
             return self.cash_used, self.max_cash_used, self.cash_balance
 
         if action == "卖出" and executed_price is not None:
             pos = self.positions.get(trigger, {}).get(strategy_id)
             if not pos or pos.get('status') != "买入":
-                print(f"警告：尝试卖出但无持仓，日期 {date}, 触发价 {trigger}, 策略ID {strategy_id}")
+                if self.verbose:
+                    print(f"警告：尝试卖出但无持仓，日期 {date}, 触发价 {trigger}, 策略ID {strategy_id}")
                 return self.cash_used, self.max_cash_used, self.cash_balance
             sell_shares = pos.get('shares', 0) if pos else 0
             sell_amount = sell_shares * executed_price
@@ -382,8 +386,9 @@ class BackTest:
             self.cash_used -= pos.get('buy_price', 0) * sell_shares
             self.max_cash_used = max(self.max_cash_used, self.cash_used)
             self.cash_balance += sell_amount
-            print(f"↗️ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f}")
-            print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
+            if self.verbose:
+                print(f"↗️ [{date}] 卖出 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 卖出金额: {sell_amount:.2f} | 卖出股数: {sell_shares:.2f}")
+                print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
             if not is_last_day:
                 self.sell_num = self.sell_num + 1
             return self.cash_used, self.max_cash_used, self.cash_balance
@@ -560,7 +565,8 @@ class BackTest:
         df_trades = pd.DataFrame(self.operate)       # 交易流水
         df_daily = pd.DataFrame(self.daily_records)  # 每日快照
         # 交易流水
-        self.print_trades_and_daily(df_trades, df_daily)
+        if self.verbose:
+            self.print_trades_and_daily(df_trades, df_daily)
 
         # --- 计算指标 ---
         xirr_portfolio = None
@@ -586,14 +592,15 @@ class BackTest:
         self.triggered_rows = len(self.triggered_set)
 
         # --- 修改：run_backtest 内部打印 ---
-        print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
-        print(f"策略 XIRR: {xirr_portfolio}")
-        print(f"初始资金: {self.initial_capital}")
-        print(f"最大占用资金: {self.max_cash_used}")
-        print(f"最大回撤 (相对峰值): {mdd_peak}")
-        print(f"最大回撤 (相对初始): {mdd_initial}")
-        print(f"年化夏普比 (rf=0.03): {sharpe}")
-        print(f"年化波动率: {vol}")
+        if self.verbose:
+            print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
+            print(f"策略 XIRR: {xirr_portfolio}")
+            print(f"初始资金: {self.initial_capital}")
+            print(f"最大占用资金: {self.max_cash_used}")
+            print(f"最大回撤 (相对峰值): {mdd_peak}")
+            print(f"最大回撤 (相对初始): {mdd_initial}")
+            print(f"年化夏普比 (rf=0.03): {sharpe}")
+            print(f"年化波动率: {vol}")
         # --- 修改结束 ---
 
         return {

@@ -69,7 +69,7 @@ if __name__ == "__main__":
             for idx, row in enumerate(grid_strategy):
                 row["id"] = int(idx)  # ←←← 强制转换为整数
             # 2. 运行回测
-            backtest = BackTest(grid_data=market_data, grid_strategy=grid_strategy)
+            backtest = BackTest(grid_data=market_data, grid_strategy=grid_strategy, verbose=False)
             metrics = backtest.run_backtest()["metrics"]
           
             # 3. 收集结果
