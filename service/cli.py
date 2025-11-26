@@ -607,10 +607,7 @@ def handle_backtest():
     print(f"数据: {selected_import_record.file_name or 'N/A'} (ID: {selected_import_id}, Code: {selected_import_record.index_code})")
     print("-" * 40 + "\n")
     try:
-        if initial_capital is None:
-            backtest = BackTest(grid_data, grid_strategy) # 假设 BackTest 可选初始资金
-        else:
-            backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
+        backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
         result = backtest.run_backtest() # 假设内部打印流水/快照
         df_trades = result.get("df_trades") if result else pd.DataFrame()
         df_daily = result.get("df_daily") if result else pd.DataFrame()

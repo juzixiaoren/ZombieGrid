@@ -34,10 +34,10 @@ if __name__ == "__main__":
     np.random.seed(42)
 
     # 行情
-    mock_market = load_market_from_file('data\\database_folder\\399971perf.json')
+    market_data = load_market_from_file('data\\database_folder\\399971perf.json')
 
-    first_price = mock_market[0]['close_price']
-    first_low = mock_market[0]['low_price']
+    first_price = market_data[0]['close_price']
+    first_low = market_data[0]['low_price']
     # 输入参数范围
     a_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # a: 5% ~ 30%
     b_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # b: 5% ~ 30%
@@ -64,8 +64,10 @@ if __name__ == "__main__":
             }
             grid_result = generate_grid_from_input(input_params)
             grid_strategy = grid_result["rows"]
+            for idx, row in enumerate(grid_strategy):
+                row["id"] = int(idx)  # ←←← 强制转换为整数
             # 2. 运行回测
-            backtest = BackTest(grid_data=mock_market, grid_strategy=grid_strategy)
+            backtest = BackTest(grid_data=market_data, grid_strategy=grid_strategy)
             metrics = backtest.run_backtest()["metrics"]
           
             # 3. 收集结果
