@@ -17,8 +17,10 @@ def load_market_from_file(file_path="real_data.json", index_code=None):
     
     market_data = []
     for item in data:
+        raw_date = item['日期Date']
+        dt_object = pd.to_datetime(str(raw_date), format='%Y%m%d')
         market_data.append({
-            'date': item['日期Date'],
+            'date': dt_object,
             'open_price': float(item['开盘Open']),
             'high_price': float(item['最高High']),
             'low_price': float(item['最低Low']),
@@ -77,7 +79,7 @@ if __name__ == "__main__":
                 '首行买入触发价': trigger_prices[i],
                 '模型行数': model_rows[i],
                 '买入金额': buy_amounts[i],
-                '策略 XIRR': metrics["xirr"],
+                '策略 XIRR': metrics.get("xirr"),
                 '最大回撤 (相对峰值)': metrics["max_drawdown_peak"],
                 '最大回撤 (相对初始)': metrics["max_drawdown_initial"],
                 '年化夏普比': metrics["sharpe"],
