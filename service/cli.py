@@ -584,14 +584,21 @@ def handle_backtest():
     print("【网格交易神器】>【开始回测】\n[3/3] 输入初始资金（默认：表格每行占用资金之和）\n")
 
     initial_capital = input_with_cancel(f"请输入初始资金 (回车选择 {selected_config.total_rows * selected_config.buy_amount:,.2f} 。按 b 取消): ", str)
-    if initial_capital == 'b' : return
-    elif initial_capital is not None:
+    if initial_capital == 'b':
+        return
+    elif not initial_capital:
+        initial_capital = None # 使用默认值
+    else:
         try:
             initial_capital = float(initial_capital)
-            if float(initial_capital) <= 0:
-                print("❌ 初始资金必须为正数。"); input("\n按任意键返回..."); return
+            if initial_capital <= 0:
+                print("❌ 初始资金必须为正数。")
+                input("\n按任意键返回...")
+                return
         except ValueError:
-            print("❌ 无效的初始资金输入。"); input("\n按任意键返回..."); return
+            print("❌ 无效的初始资金输入。")
+            input("\n按任意键返回...")
+            return
 
     # --- 执行回测 ---
     clear()
@@ -600,7 +607,10 @@ def handle_backtest():
     print(f"数据: {selected_import_record.file_name or 'N/A'} (ID: {selected_import_id}, Code: {selected_import_record.index_code})")
     print("-" * 40 + "\n")
     try:
-        backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
+        if initial_capital is None:
+            backtest = BackTest(grid_data, grid_strategy) # 假设 BackTest 可选初始资金
+        else:
+            backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
         result = backtest.run_backtest() # 假设内部打印流水/快照
         df_trades = result.get("df_trades") if result else pd.DataFrame()
         df_daily = result.get("df_daily") if result else pd.DataFrame()
