@@ -141,3 +141,41 @@ for col, val in zip(required_inputs, optimal_inputs):
 
 print(f"\n【预测的局部最优输出值】: {optimal_value:.6f}")
 print("="*70)
+
+
+# # -----------------------------
+# # 9. 保存训练好的模型和结果
+# # -----------------------------
+# import joblib
+# import json
+# import os
+
+# # 创建保存目录
+# os.makedirs("saved_models", exist_ok=True)
+
+# # 保存随机森林模型
+# model_path = "saved_models/rf_model.pkl"
+# joblib.dump(model, model_path)
+# print(f"✅ 模型已保存至: {model_path}")
+
+# # 保存最优参数
+# required_inputs = ['a', 'b', '首行买入触发价', '模型行数', '买入金额']
+# best_params = {}
+# for col, val in zip(required_inputs, optimal_inputs):
+#     if col == '模型行数':
+#         best_params[col] = int(round(val))
+#     else:
+#         best_params[col] = float(val)
+# best_params['最优目标值'] = float(optimal_value)
+# best_params['目标列'] = TARGET_COLUMN
+# best_params['优化方向'] = OPTIMIZE_MODE
+
+# params_path = "saved_models/best_params.json"
+# with open(params_path, 'w', encoding='utf-8') as f:
+#     json.dump(best_params, f, ensure_ascii=False, indent=2)
+# print(f"✅ 最优参数已保存至: {params_path}")
+
+# # 保存搜索空间
+# space_path = "saved_models/search_space.pkl"
+# joblib.dump(search_space, space_path)
+# print(f"✅ 搜索空间已保存至: {space_path}")

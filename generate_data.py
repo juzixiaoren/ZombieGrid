@@ -1,45 +1,35 @@
 import numpy as np
 import pandas as pd
-from util.build_grid_model import generate_grid_from_input  # 直接导入你的函数
+from util.build_grid_model import generate_grid_from_input, print_structured_grid_result  # 直接导入你的函数
 from util.backtest import BackTest              # 直接导入你的类
-import json
-def load_market_from_file(file_path="real_data.json", index_code=None):
-    """从导出的JSON文件加载行情"""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    # 如果文件包含多只指数，筛选指定指数
-    if index_code:
-        data = [d for d in data if d.get('index_code') == index_code]
-    
-    # 转换为 BackTest 需要的格式（按日期排序）
-    data.sort(key=lambda x: x['日期Date'])
-    
-    market_data = []
-    for item in data:
-        raw_date = item['日期Date']
-        dt_object = pd.to_datetime(str(raw_date), format='%Y%m%d')
-        market_data.append({
-            'date': dt_object,
-            'open_price': float(item['开盘Open']),
-            'high_price': float(item['最高High']),
-            'low_price': float(item['最低Low']),
-            'close_price': float(item['收盘Close'])
-        })
-    return market_data
+from dao.db_function_library import DBSessionManager
+from dao.grid_data_structure import  IndexData
+
+
+def load_market_from_db():
+    selected_import_id=2
+    db_manager = DBSessionManager()
+    try:
+        with db_manager as session:
+            grid_data_list = session.query(IndexData).filter(IndexData.import_id == selected_import_id).order_by(IndexData.date).all()
+        if not grid_data_list: print(f"\n❌ 未找到 Import ID {selected_import_id} 的行情数据。"); input("\n按任意键返回..."); return
+        grid_data = [row.to_dict() for row in grid_data_list]
+        return grid_data
+    except Exception as e:
+        print(f"\n加载行情数据时出错: {e}"); input("\n按任意键返回..."); return
 
 # ================================
 # 批量生成主逻辑
 # ================================
 if __name__ == "__main__":
-    N_SAMPLES = 100
+    N_SAMPLES = 1
     np.random.seed(42)
 
     # 行情
-    market_data = load_market_from_file('data\\database_folder\\399971perf.json')
+    grid_data = load_market_from_db()
 
-    first_price = market_data[0]['close_price']
-    first_low = market_data[0]['low_price']
+    first_price = grid_data [0]['close_price']
+    first_low = grid_data [0]['low_price']
     # 输入参数范围
     a_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # a: 5% ~ 30%
     b_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # b: 5% ~ 30%
@@ -68,8 +58,10 @@ if __name__ == "__main__":
             grid_strategy = grid_result["rows"]
             for idx, row in enumerate(grid_strategy):
                 row["id"] = int(idx)  # ←←← 强制转换为整数
+            
+            
             # 2. 运行回测
-            backtest = BackTest(grid_data=market_data, grid_strategy=grid_strategy, verbose=False)
+            backtest = BackTest(grid_data=grid_data , grid_strategy=grid_strategy, verbose=False)
             metrics = backtest.run_backtest()["metrics"]
           
             # 3. 收集结果

@@ -608,6 +608,8 @@ def handle_backtest():
     print("-" * 40 + "\n")
     try:
         backtest = BackTest(grid_data, grid_strategy, initial_capital) # 假设 BackTest 接受字典列表
+        from pprint import pprint
+        pprint(grid_data)
         result = backtest.run_backtest() # 假设内部打印流水/快照
         df_trades = result.get("df_trades") if result else pd.DataFrame()
         df_daily = result.get("df_daily") if result else pd.DataFrame()
