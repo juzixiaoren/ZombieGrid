@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from skopt import gp_minimize
 from skopt.space import Real, Integer
+from generate_data import load_market_from_db
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -84,7 +85,9 @@ def get_search_space(X):
             # 根据你的业务逻辑设置 b 的范围
             space.append(Real(0.05, 0.3, name=col))  # 示例：b ∈ [5%, 30%]
         elif col == '首行买入触发价':
-            space.append(Real(0.8, 1.2, name=col))
+            market_data = load_market_from_db()
+            first_low =  market_data [0]['low_price']
+            space.append(Real(first_low, first_low * 1.5, name=col))
         elif col == '模型行数':
             space.append(Integer(5, 30, name=col))    # 整数范围
         elif col == '买入金额':

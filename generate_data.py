@@ -22,7 +22,7 @@ def load_market_from_db():
 # 批量生成主逻辑
 # ================================
 if __name__ == "__main__":
-    N_SAMPLES = 1
+    N_SAMPLES = 100000
     np.random.seed(42)
 
     # 行情
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     a_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # a: 5% ~ 30%
     b_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # b: 5% ~ 30%
    # 触发价必须 ≥ 首日最低价（确保能触发买入）
-    trigger_prices = np.random.uniform(first_low, first_low * 1.1, N_SAMPLES)
+    trigger_prices = np.random.uniform(first_low, first_low * 1.5, N_SAMPLES)
     model_rows = np.random.randint(5, 20, N_SAMPLES)       # 行数: 5 ~ 30
     buy_amounts = np.random.uniform(1000, 50000, N_SAMPLES) # 金额: 1k ~ 50k
 
