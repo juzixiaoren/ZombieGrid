@@ -22,7 +22,7 @@ def load_market_from_db():
 # 批量生成主逻辑
 # ================================
 if __name__ == "__main__":
-    N_SAMPLES = 100
+    N_SAMPLES = 10000
     np.random.seed(42)
 
     # 行情
@@ -31,14 +31,19 @@ if __name__ == "__main__":
     all_highs = [row['high_price'] for row in grid_data if 'high_price' in row]
     all_lows  = [row['low_price']  for row in grid_data]
 
-    max_price = max(all_highs)
-    min_price = min(all_lows) 
+    min_p = min(all_lows)
+    max_p = max(all_highs)
+
+    # 10% ~ 60% 的网格低位区间
+    low_bound  = min_p + (max_p - min_p) * 0.10
+    high_bound = min_p + (max_p - min_p) * 0.60
+
 
     # 输入参数范围
     a_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # a: 5% ~ 30%
     b_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # b: 5% ~ 30%
    # 触发价必须 ≥ 首日最低价（确保能触发买入）
-    trigger_prices = np.random.uniform( min_price, max_price , N_SAMPLES)
+    trigger_prices = np.random.uniform(low_bound, high_bound, N_SAMPLES)
     model_rows = np.random.randint(5, 30, N_SAMPLES)       # 行数: 5 ~ 30
     buy_amounts = np.random.uniform(1000, 50000, N_SAMPLES) # 金额: 1k ~ 50k
 

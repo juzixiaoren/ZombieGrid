@@ -86,8 +86,18 @@ def get_search_space(X):
             space.append(Real(0.05, 0.3, name=col))  # 示例：b ∈ [5%, 30%]
         elif col == '首行买入触发价':
             market_data = load_market_from_db()
-            first_low =  market_data [0]['low_price']
-            space.append(Real(first_low, first_low * 1.5, name=col))
+
+            lows  = [row['low_price']  for row in market_data]
+            highs = [row.get('high_price', row['close_price']) for row in market_data]
+
+            min_price = min(lows)
+            max_price = max(highs)
+
+            # ⭐ 取 10%~60% 的区间作为搜索空间
+            low_bound  = min_price + 0.10 * (max_price - min_price)
+            high_bound = min_price + 0.60 * (max_price - min_price)
+
+            space.append(Real(low_bound, high_bound, name=col))
         elif col == '模型行数':
             space.append(Integer(5, 30, name=col))    # 整数范围
         elif col == '买入金额':
