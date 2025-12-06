@@ -22,20 +22,24 @@ def load_market_from_db():
 # 批量生成主逻辑
 # ================================
 if __name__ == "__main__":
-    N_SAMPLES = 100000
+    N_SAMPLES = 100
     np.random.seed(42)
 
     # 行情
     grid_data = load_market_from_db()
+    # 假设 grid_data 是 list of dict，每个 dict 有 'high_price' 或至少 'close_price'
+    all_highs = [row['high_price'] for row in grid_data if 'high_price' in row]
+    all_lows  = [row['low_price']  for row in grid_data]
 
-    first_price = grid_data [0]['close_price']
-    first_low = grid_data [0]['low_price']
+    max_price = max(all_highs)
+    min_price = min(all_lows) 
+
     # 输入参数范围
     a_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # a: 5% ~ 30%
     b_vals = np.random.uniform(0.05, 0.30, N_SAMPLES)      # b: 5% ~ 30%
    # 触发价必须 ≥ 首日最低价（确保能触发买入）
-    trigger_prices = np.random.uniform(first_low, first_low * 1.5, N_SAMPLES)
-    model_rows = np.random.randint(5, 20, N_SAMPLES)       # 行数: 5 ~ 30
+    trigger_prices = np.random.uniform( min_price, max_price , N_SAMPLES)
+    model_rows = np.random.randint(5, 30, N_SAMPLES)       # 行数: 5 ~ 30
     buy_amounts = np.random.uniform(1000, 50000, N_SAMPLES) # 金额: 1k ~ 50k
 
     print(f"🚀 开始生成 {N_SAMPLES} 行数据（预计需要 10-30 分钟）...")
