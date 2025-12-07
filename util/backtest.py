@@ -564,9 +564,11 @@ class BackTest:
 
         df_trades = pd.DataFrame(self.operate)       # 交易流水
         df_daily = pd.DataFrame(self.daily_records)  # 每日快照
+        
         # 交易流水
         if self.verbose:
             self.print_trades_and_daily(df_trades, df_daily)
+        final_net_value = df_daily["total_value"].iloc[-1]
 
         # --- 计算指标 ---
         xirr_portfolio = None
@@ -575,6 +577,7 @@ class BackTest:
         sharpe = None
         vol = None
         value_column_for_metrics = "total_value"
+        simple_return = (final_net_value - self.initial_capital) / self.initial_capital
 
         if not df_daily.empty:
             daily_values = df_daily[value_column_for_metrics]
@@ -595,7 +598,9 @@ class BackTest:
         if self.verbose:
             print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
             print(f"策略 XIRR: {xirr_portfolio}")
+            print(f"简单收益率: {simple_return}")
             print(f"初始资金: {self.initial_capital}")
+            print(f"最终总资产: {final_net_value}")
             print(f"最大占用资金: {self.max_cash_used}")
             print(f"最大回撤 (相对峰值): {mdd_peak}")
             print(f"最大回撤 (相对初始): {mdd_initial}")
@@ -608,6 +613,8 @@ class BackTest:
             "df_daily": df_daily,
             "metrics": {
                 "initial_capital": self.initial_capital,
+                "simple_return": simple_return,
+                "final_net_value": final_net_value,
                 "max_cash_used":self.max_cash_used,
                 "xirr": xirr_portfolio,
                 "max_drawdown_peak": mdd_peak,

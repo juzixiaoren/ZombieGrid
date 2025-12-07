@@ -619,6 +619,7 @@ def handle_backtest():
         print("--- 回测指标总结 ---")
         metrics = result.get("metrics", {})
         print(f"{'初始资金':<15}: {metrics.get('initial_capital', 0):,.2f}")
+        print(f"{'最终资金':<15}: {metrics.get('final_net_value', 0):,.2f}")
 
         def format_metric(value, format_str):
             if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -631,9 +632,8 @@ def handle_backtest():
         print(f"{'买入次数':<15}: {format_metric(metrics.get('buy_num'), 'd')}")
         print(f"{'买入失败次数':<15}: {format_metric(metrics.get('buy_fail_num'), 'd')}")
         print(f"{'卖出次数':<15}: {format_metric(metrics.get('sell_num'), 'd')}")
-
-
-        print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr'), '.2f')}%")
+        print(f"{'策略 XIRR':<15}: {format_metric(metrics.get('xirr')*100, '.2f')}%")
+        print(f"{'简单收益率':<15}: {format_metric(metrics.get('simple_return'), '.2%')}")
         print(f"{'最大回撤 (相对峰值)':<18}: {format_metric(metrics.get('max_drawdown_peak'), '.2%')}")
         print(f"{'⬆️计算公式':<15}: {'MIN(峰值后的净值谷值 - 净值峰值) / 净值峰值 *100%'}")
         print(f"{'最大回撤 (相对初始)':<18}: {format_metric(metrics.get('max_drawdown_initial'), '.2%')}")
