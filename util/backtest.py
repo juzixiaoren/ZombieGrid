@@ -11,8 +11,7 @@ from scipy.optimize import newton
 class BackTest:
     def __init__(self, grid_data: List[Dict], grid_strategy: List[Dict], initial_capital: Optional[float] = None, verbose: bool = True):
         """
-        回测网格交易策略的核心逻辑封装为类
-        保留原有注释与变量名，尽量不改变外部接口命名
+        回测网格交易策略的核心逻辑
         """
         self.grid_data = grid_data
         self.grid_strategy = grid_strategy
@@ -33,9 +32,7 @@ class BackTest:
         else:
             self.initial_capital = float(initial_capital)
 
-        # 以下为 run_backtest 中原本的局部变量，改造为实例属性
         self.operate = []  # 记录所有交易操作
-        # 默认把推断的初始现金放入 cash_balance，保持与之前文件一致的行为
         self.cash_balance = self.initial_capital  # 现金
         self.max_cash_used = 0.0  # 最大占用资金
         self.cash_used = 0.0  # 当前占用资金
@@ -225,7 +222,7 @@ class BackTest:
 
         drawdown = (prices - initial_capital) / initial_capital
         min_drawdown = drawdown.min() # 最小值即最大亏损幅度
-        # 如果从未跌破初始资金，最小回撤是 0 或正数，我们应该返回 0 或负数的回撤
+        # 如果从未跌破初始资金，最小回撤是 0 或正数，返回 0 或负数的回撤
         return float(min(0, min_drawdown)) if pd.notna(min_drawdown) else 0.0
 
     def compute_sharpe_from_daily(self, df_daily: pd.DataFrame,
@@ -288,7 +285,7 @@ class BackTest:
         if len(series) < 2:
             return None
 
-        # 使用简单收益；样本标准差 ddof=1 与 compute_sharpe_from_daily 保持一致
+        # 使用简单收益
         returns = series.pct_change().dropna()
         vol = returns.std(ddof=1) * np.sqrt(periods_per_year)
         return float(vol)
@@ -334,7 +331,7 @@ class BackTest:
             
             if self.cash_balance < buy_amount:
                 if self.verbose:
-                    print(f"❌ [{date}] 资金不足，无法买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 需要金额: {buy_amount:.2f} | 现金余额: {self.cash_balance:.2f}")
+                    print(f" [{date}] 资金不足，无法买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 需要金额: {buy_amount:.2f} | 现金余额: {self.cash_balance:.2f}")
                 self.buy_fail_num = self.buy_fail_num + 1
                 return self.cash_used, self.max_cash_used, self.cash_balance
 
@@ -357,7 +354,7 @@ class BackTest:
             self.max_cash_used = max(self.max_cash_used, self.cash_used)
             self.cash_balance -= buy_amount
             if self.verbose:
-                print(f"✅ [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
+                print(f" [{date}] 买入 | 策略ID: {strategy_id} | 触发价: {trigger:.3f} | 成交价: {executed_price:.3f} | 买入金额: {buy_amount:.2f} | 买入股数: {actual_shares:.2f}")
                 print(f"当前占用资金: {self.cash_used:.2f}，最大占用资金: {self.max_cash_used:.2f}")
             self.buy_num=self.buy_num + 1
             return self.cash_used, self.max_cash_used, self.cash_balance
@@ -417,7 +414,7 @@ class BackTest:
 
     def run_backtest(self) -> Dict:
         """
-        回测主流程（保留原 run_backtest 的注释与行为）
+        回测主流程
         """
         for i, grid in enumerate(self.grid_data):
             date = grid['date']
@@ -497,7 +494,7 @@ class BackTest:
                             is_first_day=(i==0),
                             is_last_day=(i==len(self.grid_data)-1),
                         )
-                # ---------- 非首日（按照常规网格触发逻辑） ----------
+                # 非首日
                 else:
                     # 卖出逻辑：当天曾冲高到卖出触发价且允许卖出
                     if high_p >= sell_trigger and self.check_positions(date, "卖出", buy_trigger, strategy.get('id')):
@@ -526,7 +523,7 @@ class BackTest:
                             buy_executed_price = buy_price
                         else:
                             # 如果没有明确的 buy_price，或者 buy_price 不在区间，
-                            # 这里严谨处理：若无合适 buy_price，则不成交
+                            # 若无合适 buy_price，则不成交
                             buy_executed_price = None
                         # 如果决定成交，登记持仓、记录流水、更新统计
                         if buy_executed_price is not None:
@@ -571,32 +568,31 @@ class BackTest:
         final_net_value = df_daily["total_value"].iloc[-1]
 
         # --- 计算指标 ---
-        xirr_portfolio = None
-        mdd_peak = None # 修改变量名
-        mdd_initial = None # 新增变量
-        sharpe = None
-        vol = None
+        xirr_portfolio = None # 策略XIRR
+        mdd_peak = None # 最大回撤（相对峰值）
+        mdd_initial = None# 最大回撤（相对初始资金）
+        sharpe = None# 年化夏普比
+        vol = None# 年化波动率
         value_column_for_metrics = "total_value"
         simple_return = (final_net_value - self.initial_capital) / self.initial_capital
 
         if not df_daily.empty:
             daily_values = df_daily[value_column_for_metrics]
             try: xirr_portfolio = self.compute_xirr(df_trades, df_daily)
-            except Exception: xirr_portfolio = None # 保持不变
+            except Exception: xirr_portfolio = None
             try: mdd_peak = self.max_drawdown_from_peak(daily_values)
             except Exception: mdd_peak = None
             try: mdd_initial = self.max_drawdown_from_initial(daily_values, self.initial_capital)
             except Exception: mdd_initial = None
             try: sharpe = self.compute_sharpe_from_daily(df_daily, value_col=value_column_for_metrics, risk_free_rate_annual=0.03)
-            except Exception: sharpe = None # 保持不变
+            except Exception: sharpe = None
             try: vol = self.annual_volatility(df_daily, value_col=value_column_for_metrics)
-            except Exception: vol = None # 保持不变
+            except Exception: vol = None
 
         self.triggered_rows = len(self.triggered_set)
 
-        # --- 修改：run_backtest 内部打印 ---
         if self.verbose:
-            print("\n--- 回测指标 (内部打印) ---") # 可以加个标题区分
+            print("\n--- 回测指标 (内部打印) ---")
             print(f"策略 XIRR: {xirr_portfolio}")
             print(f"简单收益率: {simple_return}")
             print(f"初始资金: {self.initial_capital}")
@@ -606,7 +602,6 @@ class BackTest:
             print(f"最大回撤 (相对初始): {mdd_initial}")
             print(f"年化夏普比 (rf=0.03): {sharpe}")
             print(f"年化波动率: {vol}")
-        # --- 修改结束 ---
 
         return {
             "df_trades": df_trades,

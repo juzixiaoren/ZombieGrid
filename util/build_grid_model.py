@@ -52,7 +52,7 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
         yield_rate = input_params["b"]
         profit_amount = buy_amount * input_params["b"]
 
-        # 8. 卖出触发价（这里简化为等于卖出交易价）
+        # 8. 卖出触发价
         sell_trigger_price = sell_price-0.005
 
         # 9. 创建 GridRow 实例
@@ -71,10 +71,10 @@ def generate_grid_from_input(input_params: Dict[str, Any]) -> Dict[str, Any]:
         )
         grid_rows.append(row)
 
-    # Step 3: 关联配置和行（SQLAlchemy 会处理外键）
+    # Step 3: 关联配置和行
     grid_config.rows = grid_rows
 
-    # Step 4: 返回结构化字典（可 JSON 序列化）
+    # Step 4: 返回结构化字典
     result = {
         "config": {
             "id": grid_config.id if hasattr(grid_config, 'id') else None,
