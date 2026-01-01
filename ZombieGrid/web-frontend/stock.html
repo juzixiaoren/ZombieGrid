@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>股票详情 - ZombieGrid</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+<body class="bg-dark">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <a href="index.html" class="logo-link">← 返回</a>
+        <h1 id="stockTitle">股票详情</h1>
+      </div>
+      <nav class="topnav">
+        <a href="index.html">首页</a>
+        <a href="strategy.html">策略生成</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="panel info">
+        <div class="left">
+          <h2 id="stockName">加载中...</h2>
+          <p>代码：<span id="stockCode"></span></p>
+          <p>行业：<span id="stockIndustry">—</span></p>
+          <p>最新价：<span id="stockLatest">—</span></p>
+        </div>
+        <div class="right">
+          <label>周期：
+            <select id="periodSelect">
+              <option value="day">日线</option>
+              <option value="week">周线</option>
+              <option value="month">月线</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div id="kline" style="height:480px;"></div>
+      </section>
+
+      <section class="panel indicators">
+        <h3>指标</h3>
+        <div class="indicators-grid">
+          <div class="indicator" id="maInfo">MA: —</div>
+          <div class="indicator" id="macdInfo">MACD: —</div>
+          <div class="indicator" id="rsiInfo">RSI: —</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>ZombieGrid</span>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/stock.js"></script>
+</body>
+</html>

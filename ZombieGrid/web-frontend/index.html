@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZombieGrid — 首页</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+<body class="bg-dark">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <img src="assets/logo.png" alt="logo" class="logo">
+        <h1>ZombieGrid</h1>
+      </div>
+      <div class="search-bar">
+        <input id="searchInput" placeholder="输入代码或名称搜索股票（例如 399971 / 招商银行）" />
+        <button id="btnSearch">搜索</button>
+      </div>
+      <nav class="topnav">
+        <a href="strategy.html">策略生成</a>
+        <a href="history.html">历史策略</a>
+        <a href="backtest.html">策略回测</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <section class="panel">
+        <h2>自选 / 热门</h2>
+        <div id="hotList" class="stock-grid">加载中...</div>
+      </section>
+
+      <section class="panel">
+        <h2>快速概览</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>今日涨幅榜</h3>
+            <ul id="topGainers"></ul>
+          </div>
+          <div class="card">
+            <h3>今日跌幅榜</h3>
+            <ul id="topLosers"></ul>
+          </div>
+          <div class="card">
+            <h3>最近回测</h3>
+            <ul id="recentBacktests"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© ZombieGrid</span>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.getElementById('btnSearch').addEventListener('click', () => {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return alert('请输入代码或名称');
+      // 导航到 stock.html 并携带 query
+      window.location.href = `stock.html?q=${encodeURIComponent(q)}`;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>策略回测 - ZombieGrid</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+</head>
+<body class="bg-dark">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><a href="index.html">← 返回</a><h1>策略回测</h1></div>
+      <nav class="topnav"><a href="strategy.html">生成策略</a></nav>
+    </header>
+
+    <main class="main">
+      <section class="panel">
+        <label>选择策略：
+          <select id="selectStrategy"></select>
+        </label>
+        <label>选择股票代码：
+          <input id="btStockCode" placeholder="例如 399971" />
+        </label>
+        <label>开始日期：
+          <input id="btStart" type="date" />
+        </label>
+        <label>结束日期：
+          <input id="btEnd" type="date" />
+        </label>
+        <div class="form-actions">
+          <button id="btnRunBacktest">开始回测</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>回测结果</h3>
+        <div id="btMetrics" class="metrics">尚未运行回测</div>
+        <div id="btChart" style="height:420px;"></div>
+        <div id="btTrades" class="table-area"></div>
+      </section>
+    </main>
+
+    <footer class="footer">ZombieGrid</footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/backtest.js"></script>
+</body>
+</html>

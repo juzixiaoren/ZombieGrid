@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>策略生成 - ZombieGrid</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-dark">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><a href="index.html">← 返回</a><h1>生成网格策略</h1></div>
+      <nav class="topnav"><a href="history.html">历史策略</a></nav>
+    </header>
+
+    <main class="main">
+      <section class="panel">
+        <form id="strategyForm" class="form">
+          <label>策略名称（可选）<input name="name" /></label>
+          <label>参数 a（0.05 ~ 0.30）<input name="a" type="number" step="0.001" value="0.1" /></label>
+          <label>参数 b（0.05 ~ 0.30）<input name="b" type="number" step="0.001" value="0.1" /></label>
+          <label>首个触发价 <input name="first_trigger_price" type="number" step="0.001" value="1.0" /></label>
+          <label>网格行数 <input name="total_rows" type="number" step="1" value="5" /></label>
+          <label>每次买入金额 <input name="buy_amount" type="number" step="0.01" value="10000" /></label>
+          <div class="form-actions">
+            <button type="button" id="btnGenerate">生成策略</button>
+            <button type="button" id="btnSave" disabled>保存到数据库</button>
+          </div>
+        </form>
+
+        <div id="strategyResult" class="table-area">生成结果将显示在这里</div>
+      </section>
+    </main>
+
+    <footer class="footer">ZombieGrid</footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/strategy.js"></script>
+</body>
+</html>
