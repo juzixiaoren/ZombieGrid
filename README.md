@@ -11,15 +11,25 @@
 3. 从数据库中读取并查看已保存的历史策略。
 4. 使用指定的策略和历史行情数据，执行完整的回测并查看初步结果。
 
+## 功能特性
+
+- **动态策略生成**: 基于5个核心参数自动生成网格交易策略
+- **数据库持久化**: 使用SQLite数据库存储策略和回测结果
+- **历史数据导入**: 支持从Excel/JSON格式导入历史行情数据
+- **回测引擎**: 实现完整的网格交易回测逻辑
+- **命令行界面**: 提供友好的CLI交互体验
+- **数据导出**: 支持将回测结果导出为文件
+- **数据库迁移**: 使用Alembic进行数据库版本管理
+
 ## 项目结构
 
 ```
 ZombieGrid/
 ├── 📄 alembic.ini             # Alembic的配置文件
-├── 📄 app.py                  # ✅ 主程序入口
+├── 📄 app.py                  #  主程序入口
 ├── 📄 README.md               # 项目说明文档
-├── 📄 requirements.txt        # ✨ 项目依赖包
-├── 📄 qstart.bat              # ✨ (可选) 快速启动脚本
+├── 📄 requirements.txt        #  项目依赖包
+├── 📄 qstart.bat              #  (可选) 快速启动脚本
 │
 ├── 📂 alembic/                # 数据库版本管理、迁移工具
 │
@@ -28,23 +38,23 @@ ZombieGrid/
 │   │   ├── 399971perf.xlsx   # 原始行情数据 (Excel版)
 │   │   ├── 399971perf.json   # 中间数据 (JSON版)
 │   │   └── Output_Test.json  # ✨ (可选) 测试输出文件
-│   └── zombiegrid.db       # ✅ 核心：SQLite数据库文件
+│   └── zombiegrid.db       # 核心：SQLite数据库文件
 │
 ├── 📂 dao/                    # 数据库交互层 (Data Access Object)
 │   ├── config.py             # 数据库连接配置
-│   ├── grid_data_structure.py # ✅ 核心：定义了数据库多张表的“长相”
+│   ├── grid_data_structure.py # 核心：定义了数据库多张表的“长相”
 │   ├── data_importer.py      # 将JSON数据导入数据库
-│   ├── data_exporter.py      # ✨ 将回测结果导出为文件
+│   ├── data_exporter.py      # 将回测结果导出为文件
 │   └── db_function_library.py # 提供查询数据库的函数
 │
-├── 📂 reports/                # ✨ (新增) 存放回测结果报告
+├── 📂 reports/                # 存放回测结果报告
 │
 ├── 📂 service/                # 用户服务层
-│   └── cli.py                # ✅ 前端命令行界面
+│   └── cli.py                #  前端命令行界面
 │
 └── 📂 util/                    # 核心算法与工具
-    ├── build_grid_model.py   # ✅ 核心：生成网格策略的算法
-    ├── backtest.py           # ✅ 核心：回测引擎的初步实现
+    ├── build_grid_model.py   # 核心：生成网格策略的算法
+    ├── backtest.py           # 核心：回测引擎的初步实现
     └── init_to_json.py       # 将Excel转换为JSON的工具脚本
 ```
 
@@ -111,6 +121,7 @@ ZombieGrid/
 
 * **确保你的Conda环境已激活 (`(ZombieGrid)`)**
 * 运行以下命令：
+
   ```bash
   alembic upgrade head
   ```
@@ -141,6 +152,7 @@ ZombieGrid/
 
 * **确保你的Conda环境已激活 (`(ZombieGrid)`)
 * 运行主程序 `app.py`:
+
   ```bash
   python app.py # macOS 可能需要使用 python3 命令
   ```
@@ -152,3 +164,67 @@ ZombieGrid/
 ### 日常开发流程
 
 * 每次开始开发前，请务-务必先用 `conda activate ZombieGrid` 激活环境。随后进行依赖同步、更新。开发结束后，可以使用 `conda deactivate` 退出环境。
+
+---
+
+## 构建可执行文件
+
+项目提供了两种构建可执行文件的脚本：
+
+### 使用 Conda 环境构建
+
+```bash
+build_exe_conda.bat
+```
+
+### 使用系统 Python 构建
+
+```bash
+build_exe.bat
+```
+
+构建完成后，可执行文件将在 `dist/` 目录下生成。
+
+---
+
+## 文档
+
+项目文档位于 `docs/` 目录下：
+
+- [测试报告](docs/测试报告.md)
+- [概要设计](docs/概要设计.md)
+- [设计文档](docs/设计文档.md)
+- [数据库设计](docs/数据库设计.md)
+- [详细设计](docs/详细设计.md)
+
+---
+
+## 依赖包
+
+主要依赖包包括：
+
+- SQLAlchemy: 数据库ORM
+- Alembic: 数据库迁移工具
+- pandas: 数据处理
+- numpy: 数值计算
+- click: 命令行界面
+
+完整依赖列表请查看 [requirements.txt](requirements.txt)
+
+---
+
+## 问题和反馈
+
+如果您在使用过程中遇到问题或有建议，请：
+
+1. 查看 [测试报告](docs/测试报告.md) 中是否已有相关说明
+2. 检查数据库和数据文件是否正确配置
+3. 提交 Issue 描述问题
+
+GitHub仓库地址：**https://github.com/juzixiaoren/ZombieGrid**
+
+---
+
+## 许可证
+
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
